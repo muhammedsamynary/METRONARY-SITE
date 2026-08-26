@@ -1,0 +1,483 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════
+   METRONARY — Global Design System
+   
+   Permanent palette: Yellow → Gold → Orange → Burnt Orange → Deep Orange
+   This palette NEVER changes to blue / purple / green / pink.
+   Only gradient COMPOSITION changes per page/product.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────
+   BRAND COLOR TOKENS
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* ── Fiery Palette (permanent) ── */
+  --m-yellow:        #ffd60a;   /* pure solar yellow */
+  --m-yellow-warm:   #ffbe0b;   /* warm golden yellow */
+  --m-gold:          #fb8500;   /* golden amber */
+  --m-orange:        #e85d04;   /* core brand orange */
+  --m-orange-deep:   #c44b03;   /* burnt orange */
+  --m-ember:         #9d2d00;   /* deep ember */
+  --m-lava:          #6b1a00;   /* near-black ember */
+
+  /* ── Dark Ground ── */
+  --m-dark:          #0d0d0b;   /* warm near-black */
+  --m-charcoal:      #161614;   /* card bg */
+  --m-smoke:         #222220;   /* secondary surface */
+  --m-ash:           #3a3a36;   /* border muted */
+  --m-dust:          #5a5a54;   /* text disabled */
+
+  /* ── Light / Text ── */
+  --m-mist:          #f5f4ee;   /* primary text */
+  --m-cream:         #fefcf5;   /* highest contrast text */
+  --m-faded:         rgba(245, 244, 238, 0.55);  /* secondary text */
+  --m-ghost:         rgba(245, 244, 238, 0.25);  /* placeholder / hint */
+
+  /* ── Glass System ── */
+  --m-glass-bg:      rgba(22, 22, 20, 0.55);
+  --m-glass-border:  rgba(245, 244, 238, 0.08);
+  --m-glass-shine:   rgba(255, 214, 10, 0.04);   /* subtle yellow sheen */
+  --m-glass-blur:    12px;
+
+  /* ── Typography scale ── */
+  --m-font-display:  "Inter", "Helvetica Neue", Arial, sans-serif;
+  --m-font-body:     "Inter", system-ui, sans-serif;
+  --m-font-mono:     "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Replace --m-font-display with the brand font when supplied */
+  --m-font-heading:  var(--m-font-display);
+
+  /* ── Spacing ── */
+  --m-section-gap:   5rem;
+  --m-content-max:   72rem;
+
+  /* ── Radius ── */
+  --m-radius-sm:     2px;
+  --m-radius-md:     4px;
+  --m-radius-lg:     8px;
+  --m-radius-pill:   9999px;
+
+  /* ── Motion ── */
+  --m-ease-out:      cubic-bezier(0.22, 1, 0.36, 1);
+  --m-ease-in-out:   cubic-bezier(0.45, 0, 0.55, 1);
+  --m-dur-fast:      150ms;
+  --m-dur-base:      250ms;
+  --m-dur-slow:      500ms;
+  --m-dur-xslow:     900ms;
+
+  /* ── Shadow ── */
+  --m-shadow-sm:     0 1px 3px rgba(0,0,0,0.4);
+  --m-shadow-md:     0 4px 16px rgba(0,0,0,0.5);
+  --m-shadow-glow:   0 0 32px rgba(232, 93, 4, 0.18);
+  --m-shadow-gold:   0 0 24px rgba(251, 133, 0, 0.22);
+
+  /* ── Z-index stack ── */
+  --m-z-bg:          0;
+  --m-z-content:     10;
+  --m-z-overlay:     20;
+  --m-z-header:      50;
+  --m-z-modal:       100;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   BASE RESET
+   ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--m-dark);
+  color: var(--m-mist);
+  font-family: var(--m-font-body);
+  line-height: 1.65;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+img, video { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+
+/* ─────────────────────────────────────────────────────────────
+   TYPOGRAPHY HIERARCHY
+   ───────────────────────────────────────────────────────────── */
+
+/* Display / Hero */
+.m-type-display {
+  font-family: var(--m-font-heading);
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 0.92;
+  color: var(--m-cream);
+}
+
+/* Product title */
+.m-type-title {
+  font-family: var(--m-font-heading);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: var(--m-cream);
+}
+
+/* Section / nav label */
+.m-type-label {
+  font-family: var(--m-font-body);
+  font-size: 0.6875rem;        /* 11px */
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--m-faded);
+}
+
+/* Price */
+.m-type-price {
+  font-family: var(--m-font-mono);
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--m-cream);
+}
+
+/* Body */
+.m-type-body {
+  font-family: var(--m-font-body);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.7;
+  color: var(--m-faded);
+}
+
+/* Technical / utility */
+.m-type-mono {
+  font-family: var(--m-font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: var(--m-ghost);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GLASS UI SYSTEM
+   ───────────────────────────────────────────────────────────── */
+
+.m-glass {
+  background: var(--m-glass-bg);
+  border: 1px solid var(--m-glass-border);
+  backdrop-filter: blur(var(--m-glass-blur));
+  -webkit-backdrop-filter: blur(var(--m-glass-blur));
+}
+
+.m-glass-warm {
+  background: rgba(22, 22, 20, 0.48);
+  border: 1px solid rgba(232, 93, 4, 0.12);
+  backdrop-filter: blur(var(--m-glass-blur));
+  -webkit-backdrop-filter: blur(var(--m-glass-blur));
+  box-shadow: inset 0 1px 0 rgba(255, 214, 10, 0.05);
+}
+
+.m-glass-panel {
+  background: var(--m-glass-bg);
+  border: 1px solid var(--m-glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--m-shadow-md);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CTA BUTTONS
+   ───────────────────────────────────────────────────────────── */
+
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  font-family: var(--m-font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition:
+    background-color var(--m-dur-base) var(--m-ease-out),
+    transform var(--m-dur-fast) var(--m-ease-out),
+    box-shadow var(--m-dur-base) var(--m-ease-out);
+  border-radius: var(--m-radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.m-btn:active { transform: translateY(1px); }
+
+/* Primary — fiery fill */
+.m-btn-primary {
+  background-color: var(--m-orange);
+  color: var(--m-cream);
+  box-shadow: 0 2px 12px rgba(232, 93, 4, 0.35);
+}
+.m-btn-primary:hover {
+  background-color: var(--m-gold);
+  box-shadow: var(--m-shadow-glow);
+}
+
+/* Secondary — ghost border */
+.m-btn-secondary {
+  background-color: transparent;
+  color: var(--m-mist);
+  border: 1px solid var(--m-ash);
+}
+.m-btn-secondary:hover {
+  border-color: var(--m-orange);
+  color: var(--m-cream);
+}
+
+/* Disabled */
+.m-btn:disabled,
+.m-btn[aria-disabled="true"] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   UI CONTROLS — size chips, selectors
+   ───────────────────────────────────────────────────────────── */
+
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.75rem;
+  font-family: var(--m-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--m-ash);
+  border-radius: var(--m-radius-sm);
+  color: var(--m-faded);
+  cursor: pointer;
+  transition:
+    border-color var(--m-dur-fast) var(--m-ease-out),
+    color var(--m-dur-fast) var(--m-ease-out),
+    background-color var(--m-dur-fast) var(--m-ease-out);
+}
+
+.m-chip:hover {
+  border-color: var(--m-orange);
+  color: var(--m-mist);
+}
+
+.m-chip[data-selected="true"] {
+  border-color: var(--m-orange);
+  background-color: rgba(232, 93, 4, 0.12);
+  color: var(--m-cream);
+}
+
+.m-chip[data-disabled="true"] {
+  opacity: 0.3;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   DIVIDERS / BORDERS
+   ───────────────────────────────────────────────────────────── */
+
+.m-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--m-glass-border);
+}
+
+.m-divider-warm {
+  width: 2.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--m-orange), transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SUBTLE AMBIENT MOTION
+   ───────────────────────────────────────────────────────────── */
+
+@keyframes m-breathe {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.012); }
+}
+
+@keyframes m-drift {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  33%  { transform: translate(1%, 0.5%) rotate(0.3deg); }
+  66%  { transform: translate(-0.5%, 1%) rotate(-0.2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes m-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes m-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Respect reduced motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GRAIN TEXTURE OVERLAY
+   (CSS noise — complements the supplied gradient artwork)
+   ───────────────────────────────────────────────────────────── */
+
+.m-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  opacity: 0.042;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SCROLL FADE UTILITY
+   ───────────────────────────────────────────────────────────── */
+
+.m-animate-fade-up {
+  animation: m-fade-up var(--m-dur-slow) var(--m-ease-out) both;
+}
+
+.m-animate-fade-in {
+  animation: m-fade-in var(--m-dur-slow) var(--m-ease-out) both;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   UTILITY HELPERS
+   ───────────────────────────────────────────────────────────── */
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE FLOATING PRODUCT SPATIAL ENGINE
+   ───────────────────────────────────────────────────────────── */
+
+.m-floating-product {
+  position: absolute;
+  top: var(--m-pos-top, auto);
+  bottom: var(--m-pos-bottom, auto);
+  left: var(--m-pos-left, auto);
+  right: var(--m-pos-right, auto);
+  width: var(--m-pos-width);
+  max-width: var(--m-pos-max-width, none);
+  z-index: var(--m-pos-z, 10);
+  transform: rotate(var(--m-pos-rot, 0deg));
+  display: var(--m-pos-display, block);
+}
+
+@media (max-width: 767px) {
+  .m-floating-product {
+    top: var(--m-mob-top, var(--m-pos-top, auto));
+    bottom: var(--m-mob-bottom, var(--m-pos-bottom, auto));
+    left: var(--m-mob-left, var(--m-pos-left, auto));
+    right: var(--m-mob-right, var(--m-pos-right, auto));
+    width: var(--m-mob-width, var(--m-pos-width));
+    max-width: var(--m-mob-max-width, var(--m-pos-max-width, none));
+    z-index: var(--m-mob-z, var(--m-pos-z, 10));
+    transform: rotate(var(--m-mob-rot, var(--m-pos-rot, 0deg)));
+    display: var(--m-mob-display, var(--m-pos-display, block));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .m-floating-product {
+    top: var(--m-tab-top, var(--m-pos-top, auto));
+    bottom: var(--m-tab-bottom, var(--m-pos-bottom, auto));
+    left: var(--m-tab-left, var(--m-pos-left, auto));
+    right: var(--m-tab-right, var(--m-pos-right, auto));
+    width: var(--m-tab-width, var(--m-pos-width));
+    max-width: var(--m-tab-max-width, var(--m-pos-max-width, none));
+    z-index: var(--m-tab-z, var(--m-pos-z, 10));
+    transform: rotate(var(--m-tab-rot, var(--m-pos-rot, 0deg)));
+    display: var(--m-tab-display, var(--m-pos-display, block));
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   PARALLAX TRANSLATION WRAPPER
+   ───────────────────────────────────────────────────────────── */
+
+.m-parallax-item {
+  transform: translate3d(
+    calc(var(--m-parallax-x, 0px) * var(--m-depth, 1)),
+    calc(var(--m-parallax-y, 0px) * var(--m-depth, 1)),
+    0
+  );
+  will-change: transform;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   IDLE GARMENT DRIFT (Asynchronous & Ultra-Subtle)
+   ───────────────────────────────────────────────────────────── */
+
+@keyframes m-idle-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%       { transform: translate3d(0, -6px, 0) rotate(0.4deg); }
+}
+
+@keyframes m-idle-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%       { transform: translate3d(0, 5px, 0) rotate(-0.35deg); }
+}
+
+@keyframes m-idle-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%       { transform: translate3d(-3px, -4px, 0) rotate(0.3deg); }
+}
+
+@keyframes m-idle-drift-d {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%       { transform: translate3d(3px, 4px, 0) rotate(-0.25deg); }
+}
+
+.m-idle-1 { animation: m-idle-drift-a 18s ease-in-out infinite; will-change: transform; }
+.m-idle-2 { animation: m-idle-drift-b 23s ease-in-out infinite; will-change: transform; }
+.m-idle-3 { animation: m-idle-drift-c 27s ease-in-out infinite; will-change: transform; }
+.m-idle-4 { animation: m-idle-drift-d 21s ease-in-out infinite; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m-parallax-item {
+    transform: none !important;
+  }
+  .m-idle-1, .m-idle-2, .m-idle-3, .m-idle-4 {
+    animation: none !important;
+  }
+}
+
+
