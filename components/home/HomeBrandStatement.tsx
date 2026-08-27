@@ -1,7 +1,7 @@
 export function HomeBrandStatement() {
   return (
     <div
-      className="absolute bottom-6 sm:bottom-8 left-6 sm:left-10 z-[5] pointer-events-none select-none flex flex-col items-start text-left"
+      className="absolute top-[88vh] sm:top-[90vh] left-6 sm:left-10 z-[5] pointer-events-none select-none flex flex-col items-start text-left"
       aria-hidden="true"
     >
       <p className="m-type-label text-[10px] sm:text-[11px] tracking-[0.24em] text-[var(--m-cream)] opacity-85 drop-shadow-[0_1px_8px_rgba(0,0,0,0.85)]">

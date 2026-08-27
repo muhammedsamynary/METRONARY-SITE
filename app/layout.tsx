@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { CartProvider } from "@/components/cart/CartProvider";
 import { SITE } from "@/lib/constants";
 
 const inter = Inter({
@@ -50,14 +51,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-screen flex flex-col" style={{
-        backgroundColor: "var(--m-dark)",
-        color: "var(--m-mist)",
-        fontFamily: "var(--m-font-body)",
-      }}>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body
+        className="min-h-screen flex flex-col"
+        style={{
+          backgroundColor: "var(--m-dark)",
+          color: "var(--m-mist)",
+          fontFamily: "var(--m-font-body)",
+        }}
+      >
+        <CartProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

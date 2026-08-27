@@ -5,9 +5,16 @@ import type { FloatingProductData } from "./types";
 import { useProductParallax } from "./useProductParallax";
 
 /**
- * ─── SCENE 1: Flagship Core Collection (First Viewport) ───
+ * ─── CONTINUOUS SPATIAL PRODUCT FIELD (ALL 10 PRODUCTS) ───
+ *
+ * Final Polish:
+ * 1. Dense, cohesive editorial rhythm (condensed height: ~1680px desktop).
+ * 2. Protected safe zones (header top >= 130px, footer bottom margin >= 160px, edge margins 8%–16%).
+ * 3. Connected shorts placement (starts immediately below DECORATIVE with ~80px gap).
+ * 4. Staggered diagonal pacing (zero collisions, zero dead voids).
  */
-export const SCENE_1_PRODUCTS: FloatingProductData[] = [
+export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
+  // ─── SCENE 1: Flagship Core Collection (Upper Field) ───
   {
     id: "prod-fearless",
     slug: "fearless",
@@ -18,64 +25,60 @@ export const SCENE_1_PRODUCTS: FloatingProductData[] = [
     priority: true,
     hasAlpha: true,
     depthTier: "foreground",
-    depthFactor: 1.15,
+    depthFactor: 1.1,
     idleClass: "m-idle-1",
     layout: {
       desktop: {
-        top: "22%",
-        left: "6%",
-        width: "min(26vw, 360px)",
-        rotation: -4,
+        top: "150px",
+        left: "8%",
+        width: "min(22vw, 325px)",
+        rotation: -3,
         zIndex: 15,
       },
       tablet: {
-        top: "20%",
-        left: "6%",
-        width: "min(34vw, 300px)",
-        rotation: -4,
+        top: "120px",
+        left: "7%",
+        width: "min(32vw, 265px)",
+        rotation: -3,
         zIndex: 15,
       },
       mobile: {
-        top: "24%",
-        left: "5%",
-        width: "min(62vw, 250px)",
+        top: "140px",
+        left: "6%",
+        width: "min(56vw, 220px)",
         rotation: -3,
         zIndex: 15,
       },
     },
   },
   {
-    id: "prod-orange-work-shirt",
-    slug: "orange-work-shirt",
-    name: "CAMP-COLLAR WORK SHIRT",
-    image: "/products/orange-work-shirt.png",
-    alt: "METRONARY Orange Camp-Collar Work Shirt",
-    priority: true,
+    id: "prod-old-boy-w",
+    slug: "old-boy-w",
+    name: "OLD BOY WHITE",
+    image: "/products/old-boy-w.png",
+    alt: "METRONARY Old Boy White Garment",
     hasAlpha: true,
     depthTier: "midground",
-    depthFactor: 0.65,
-    idleClass: "m-idle-3",
+    depthFactor: 0.8,
+    idleClass: "m-idle-2",
     layout: {
       desktop: {
-        top: "44%",
-        left: "29%",
-        width: "min(21vw, 290px)",
-        rotation: 3,
+        top: "130px",
+        left: "39%",
+        width: "min(20vw, 295px)",
+        rotation: 4,
         zIndex: 12,
       },
       tablet: {
-        bottom: "16%",
-        left: "14%",
-        width: "min(30vw, 260px)",
-        rotation: 2,
+        top: "110px",
+        left: "46%",
+        width: "min(25vw, 210px)",
+        rotation: 4,
         zIndex: 12,
       },
       mobile: {
-        bottom: "12%",
-        left: "-6%",
-        width: "min(44vw, 175px)",
-        rotation: 3,
-        zIndex: 13,
+        width: "0px",
+        hidden: true,
       },
     },
   },
@@ -91,25 +94,60 @@ export const SCENE_1_PRODUCTS: FloatingProductData[] = [
     idleClass: "m-idle-2",
     layout: {
       desktop: {
-        top: "14%",
-        right: "7%",
-        width: "min(22vw, 310px)",
-        rotation: -3,
+        top: "160px",
+        right: "8%",
+        width: "min(21vw, 310px)",
+        rotation: -4,
         zIndex: 14,
       },
       tablet: {
-        top: "10%",
-        right: "5%",
-        width: "min(28vw, 240px)",
-        rotation: 4,
+        top: "130px",
+        right: "7%",
+        width: "min(28vw, 235px)",
+        rotation: -4,
         zIndex: 14,
       },
       mobile: {
-        top: "8%",
-        right: "-10%",
+        top: "60px",
+        right: "-4%",
         width: "min(42vw, 165px)",
-        rotation: 6,
+        rotation: 5,
         zIndex: 14,
+      },
+    },
+  },
+  {
+    id: "prod-orange-work-shirt",
+    slug: "orange-work-shirt",
+    name: "CAMP-COLLAR WORK SHIRT",
+    image: "/products/orange-work-shirt.png",
+    alt: "METRONARY Orange Camp-Collar Work Shirt",
+    priority: true,
+    hasAlpha: true,
+    depthTier: "midground",
+    depthFactor: 0.7,
+    idleClass: "m-idle-3",
+    layout: {
+      desktop: {
+        top: "450px",
+        left: "22%",
+        width: "min(21vw, 310px)",
+        rotation: 3,
+        zIndex: 13,
+      },
+      tablet: {
+        top: "390px",
+        left: "8%",
+        width: "min(29vw, 240px)",
+        rotation: 3,
+        zIndex: 13,
+      },
+      mobile: {
+        top: "380px",
+        left: "-2%",
+        width: "min(45vw, 175px)",
+        rotation: 3,
+        zIndex: 13,
       },
     },
   },
@@ -121,69 +159,34 @@ export const SCENE_1_PRODUCTS: FloatingProductData[] = [
     alt: "METRONARY Look at the Sky Garment",
     hasAlpha: true,
     depthTier: "foreground",
-    depthFactor: 0.85,
+    depthFactor: 1.05,
     idleClass: "m-idle-4",
     layout: {
       desktop: {
-        bottom: "5%",
+        top: "480px",
+        right: "14%",
+        width: "min(22vw, 325px)",
+        rotation: 4,
+        zIndex: 15,
+      },
+      tablet: {
+        top: "420px",
         right: "8%",
-        width: "min(24vw, 340px)",
+        width: "min(30vw, 250px)",
         rotation: 4,
         zIndex: 14,
       },
-      tablet: {
-        bottom: "6%",
-        right: "6%",
-        width: "min(32vw, 270px)",
-        rotation: 4,
-        zIndex: 13,
-      },
       mobile: {
-        bottom: "4%",
-        right: "-6%",
-        width: "min(48vw, 190px)",
-        rotation: 5,
+        top: "590px",
+        right: "-2%",
+        width: "min(46vw, 185px)",
+        rotation: 4,
         zIndex: 14,
       },
     },
   },
-  {
-    id: "prod-old-boy-w",
-    slug: "old-boy-w",
-    name: "OLD BOY WHITE",
-    image: "/products/old-boy-w.png",
-    alt: "METRONARY Old Boy White Garment",
-    hasAlpha: true,
-    depthTier: "midground",
-    depthFactor: 0.75,
-    idleClass: "m-idle-2",
-    layout: {
-      desktop: {
-        top: "8%",
-        right: "34%",
-        width: "min(18vw, 250px)",
-        rotation: 4,
-        zIndex: 11,
-      },
-      tablet: {
-        top: "8%",
-        right: "26%",
-        width: "min(22vw, 190px)",
-        rotation: 4,
-        zIndex: 11,
-      },
-      mobile: {
-        width: "0px",
-        hidden: true,
-      },
-    },
-  },
-];
 
-/**
- * ─── SCENE 2: Archival Graphics Field (Second Viewport) ───
- */
-export const SCENE_2_PRODUCTS: FloatingProductData[] = [
+  // ─── SCENE 2: Archival Graphics (Middle Field) ───
   {
     id: "prod-old-boy",
     slug: "old-boy",
@@ -192,27 +195,27 @@ export const SCENE_2_PRODUCTS: FloatingProductData[] = [
     alt: "METRONARY Old Boy Core Black Garment",
     hasAlpha: true,
     depthTier: "foreground",
-    depthFactor: 1.05,
+    depthFactor: 1.1,
     idleClass: "m-idle-1",
     layout: {
       desktop: {
-        top: "24%",
-        left: "10%",
-        width: "min(25vw, 350px)",
+        top: "760px",
+        left: "9%",
+        width: "min(22vw, 325px)",
         rotation: 3,
         zIndex: 15,
       },
       tablet: {
-        top: "18%",
+        top: "690px",
         left: "8%",
-        width: "min(32vw, 280px)",
+        width: "min(30vw, 250px)",
         rotation: 3,
         zIndex: 15,
       },
       mobile: {
-        top: "20%",
-        left: "4%",
-        width: "min(58vw, 230px)",
+        top: "840px",
+        left: "6%",
+        width: "min(56vw, 220px)",
         rotation: 2,
         zIndex: 15,
       },
@@ -230,23 +233,23 @@ export const SCENE_2_PRODUCTS: FloatingProductData[] = [
     idleClass: "m-idle-3",
     layout: {
       desktop: {
-        top: "16%",
-        right: "11%",
-        width: "min(23vw, 320px)",
+        top: "800px",
+        right: "9%",
+        width: "min(21vw, 310px)",
         rotation: -4,
         zIndex: 14,
       },
       tablet: {
-        top: "14%",
-        right: "8%",
-        width: "min(28vw, 250px)",
+        top: "740px",
+        right: "7%",
+        width: "min(28vw, 235px)",
         rotation: -4,
         zIndex: 14,
       },
       mobile: {
-        top: "10%",
-        right: "-8%",
-        width: "min(46vw, 180px)",
+        top: "1090px",
+        right: "-4%",
+        width: "min(44vw, 175px)",
         rotation: -4,
         zIndex: 14,
       },
@@ -260,38 +263,34 @@ export const SCENE_2_PRODUCTS: FloatingProductData[] = [
     alt: "METRONARY Decorative Edition Garment",
     hasAlpha: true,
     depthTier: "midground",
-    depthFactor: 0.7,
+    depthFactor: 0.75,
     idleClass: "m-idle-4",
     layout: {
       desktop: {
-        bottom: "10%",
+        top: "1060px",
         left: "36%",
-        width: "min(22vw, 300px)",
-        rotation: 5,
+        width: "min(21vw, 310px)",
+        rotation: 4,
         zIndex: 13,
       },
       tablet: {
-        bottom: "12%",
+        top: "990px",
         left: "26%",
-        width: "min(26vw, 230px)",
+        width: "min(27vw, 225px)",
         rotation: 4,
         zIndex: 13,
       },
       mobile: {
-        bottom: "8%",
+        top: "1340px",
         left: "12%",
-        width: "min(50vw, 200px)",
+        width: "min(48vw, 190px)",
         rotation: 4,
         zIndex: 13,
       },
     },
   },
-];
 
-/**
- * ─── SCENE 3: Tactical Cargo Shorts (Third Viewport) ───
- */
-export const SCENE_3_PRODUCTS: FloatingProductData[] = [
+  // ─── SCENE 3: Tactical Cargo Shorts (Integrated Lower Field) ───
   {
     id: "prod-digital-camo-shorts",
     slug: "digital-camo-shorts",
@@ -304,23 +303,23 @@ export const SCENE_3_PRODUCTS: FloatingProductData[] = [
     idleClass: "m-idle-2",
     layout: {
       desktop: {
-        top: "22%",
-        left: "14%",
-        width: "min(25vw, 350px)",
+        top: "1300px",
+        left: "16%",
+        width: "min(23vw, 335px)",
         rotation: -3,
         zIndex: 14,
       },
       tablet: {
-        top: "18%",
+        top: "1240px",
         left: "10%",
-        width: "min(32vw, 270px)",
+        width: "min(31vw, 260px)",
         rotation: -3,
         zIndex: 14,
       },
       mobile: {
-        top: "18%",
-        left: "6%",
-        width: "min(54vw, 210px)",
+        top: "1590px",
+        left: "8%",
+        width: "min(54vw, 215px)",
         rotation: -3,
         zIndex: 14,
       },
@@ -334,27 +333,27 @@ export const SCENE_3_PRODUCTS: FloatingProductData[] = [
     alt: "METRONARY Desert Camo Shorts",
     hasAlpha: true,
     depthTier: "foreground",
-    depthFactor: 0.9,
+    depthFactor: 0.95,
     idleClass: "m-idle-4",
     layout: {
       desktop: {
-        top: "34%",
+        top: "1330px",
         right: "16%",
-        width: "min(25vw, 350px)",
+        width: "min(23vw, 335px)",
         rotation: 4,
         zIndex: 14,
       },
       tablet: {
-        bottom: "16%",
-        right: "10%",
-        width: "min(32vw, 270px)",
+        top: "1280px",
+        right: "8%",
+        width: "min(31vw, 260px)",
         rotation: 4,
         zIndex: 14,
       },
       mobile: {
-        bottom: "12%",
-        right: "4%",
-        width: "min(54vw, 210px)",
+        top: "1850px",
+        right: "6%",
+        width: "min(54vw, 215px)",
         rotation: 4,
         zIndex: 14,
       },
@@ -362,26 +361,24 @@ export const SCENE_3_PRODUCTS: FloatingProductData[] = [
   },
 ];
 
-interface SpatialSceneProps {
-  products: FloatingProductData[];
+interface ProductFieldProps {
+  products?: FloatingProductData[];
   onHoverProduct?: (slug: string | null) => void;
   className?: string;
-  "aria-label"?: string;
 }
 
-export function SpatialScene({
-  products,
+export function ProductField({
+  products = HOMEPAGE_PRODUCTS,
   onHoverProduct,
   className = "",
-  "aria-label": ariaLabel = "Spatial garment field",
-}: SpatialSceneProps) {
+}: ProductFieldProps) {
   const containerRef = useProductParallax({ sensitivity: 0.9, maxOffset: 14 });
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-[100dvh] min-h-[640px] pointer-events-none overflow-hidden ${className}`}
-      aria-label={ariaLabel}
+      className={`relative w-full min-h-[1680px] sm:min-h-[1780px] max-sm:min-h-[2250px] pb-24 pointer-events-none overflow-hidden ${className}`}
+      aria-label="Metronary spatial product field"
     >
       {products.map((product) => (
         <FloatingProduct
@@ -394,13 +391,8 @@ export function SpatialScene({
   );
 }
 
-// Backward compatibility alias for single product field
-export function ProductField({
-  products = SCENE_1_PRODUCTS,
-  onHoverProduct,
-}: {
-  products?: FloatingProductData[];
-  onHoverProduct?: (slug: string | null) => void;
-}) {
-  return <SpatialScene products={products} onHoverProduct={onHoverProduct} />;
-}
+// Backward compatibility alias for scenes
+export const SCENE_1_PRODUCTS = HOMEPAGE_PRODUCTS.slice(0, 5);
+export const SCENE_2_PRODUCTS = HOMEPAGE_PRODUCTS.slice(5, 8);
+export const SCENE_3_PRODUCTS = HOMEPAGE_PRODUCTS.slice(8, 10);
+export const SpatialScene = ProductField;

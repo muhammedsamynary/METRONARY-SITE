@@ -1,15 +1,16 @@
 import type { Product, ProductCategory } from "./types";
+import { SHORTS_SIZE_GUIDE } from "./size-guides";
 
 /**
  * TEMPORARY SEED CATALOG DATA
  *
- * NOTE: This is temporary seed data for development of the Storefront & Catalog UI.
- * In later phases, this source will be replaced by database queries and Admin CMS.
- *
  * RULES:
- * 1. Product names are WORKING / INTERNAL labels.
+ * 1. Product names are WORKING / INTERNAL labels unless officially approved.
  * 2. Prices are set to null until officially confirmed (NO invented pricing).
- * 3. Real supplied assets only.
+ * 3. Descriptions are set to null until officially provided (NO invented descriptions).
+ * 4. Sizes: S / M / L for both shorts (confirmed). Tops have no confirmed sizes yet.
+ * 5. Inventory: Unknown until database/inventory phase.
+ * 6. Size Guide: Assigned to shorts (confirmed). Tops have no size guide.
  */
 
 export const CATALOG_PRODUCTS: Product[] = [
@@ -20,7 +21,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Heavyweight cotton jersey graphic garment with signature back blaze artwork.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/fearless.png"],
@@ -30,7 +31,10 @@ export const CATALOG_PRODUCTS: Product[] = [
     active: true,
     featured: true,
     badge: "DROP 01",
-    tags: ["tee", "heavyweight", "graphic", "fearless"],
+    tags: ["tee", "graphic", "fearless"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-orange-work-shirt",
@@ -39,7 +43,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Work Shirt",
-    description: "Structured cotton camp-collar buttoned shirt in vibrant underground orange.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/orange-work-shirt.png"],
@@ -50,6 +54,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     featured: true,
     badge: "NEW SILHOUETTE",
     tags: ["shirt", "camp-collar", "orange", "workwear"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-1973",
@@ -58,7 +65,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Archival 1973 edition graphic tee engineered in premium black cotton.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/1973.png"],
@@ -69,6 +76,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     featured: true,
     badge: "ARCHIVE",
     tags: ["tee", "1973", "black", "graphic"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-look-at-sky",
@@ -77,7 +87,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Look at the Sky edition graphic tee with subterranean gradient back print.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/look-at-sky.png"],
@@ -87,6 +97,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     active: true,
     featured: true,
     tags: ["tee", "graphic", "black"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-old-boy-w",
@@ -95,7 +108,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Raw white / cream heavyweight cotton tee featuring understated chest typography.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/old-boy-w.png"],
@@ -104,7 +117,10 @@ export const CATALOG_PRODUCTS: Product[] = [
     gradientKey: "old-boy-w",
     active: true,
     featured: true,
-    tags: ["tee", "white", "raw-cotton"],
+    tags: ["tee", "white"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-old-boy",
@@ -113,7 +129,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Core black edition of the Old Boy graphic tee silhouette.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/old-boy.png"],
@@ -123,6 +139,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     active: true,
     featured: false,
     tags: ["tee", "black", "graphic"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-time",
@@ -131,7 +150,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Time series graphic garment with high-density underground screenprint.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/time.png"],
@@ -141,6 +160,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     active: true,
     featured: false,
     tags: ["tee", "time", "graphic"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-decorative",
@@ -149,7 +171,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "tops",
     silhouette: "Graphic Tee",
-    description: "Decorative series graphic tee with custom typography placement.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/decorarive.png"],
@@ -159,6 +181,9 @@ export const CATALOG_PRODUCTS: Product[] = [
     active: true,
     featured: false,
     tags: ["tee", "decorative", "graphic"],
+    variants: [],
+    sizeGuideId: null,
+    sizeGuide: null,
   },
   {
     id: "prod-digital-camo-shorts",
@@ -167,7 +192,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "shorts",
     silhouette: "Cargo Shorts",
-    description: "Technical relaxed-fit shorts featuring digital camo pattern and reinforced pockets.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/digital-camo-shorts.png"],
@@ -178,6 +203,28 @@ export const CATALOG_PRODUCTS: Product[] = [
     featured: true,
     badge: "COLLECTION",
     tags: ["shorts", "camo", "digital", "bottoms"],
+    variants: [
+      {
+        id: "var-digital-s",
+        size: "S",
+        stockStatus: "unknown",
+        measurements: { length: "52 cm", waist: "44 cm", legOpening: "30 cm" },
+      },
+      {
+        id: "var-digital-m",
+        size: "M",
+        stockStatus: "unknown",
+        measurements: { length: "56 cm", waist: "48 cm", legOpening: "33 cm" },
+      },
+      {
+        id: "var-digital-l",
+        size: "L",
+        stockStatus: "unknown",
+        measurements: { length: "61 cm", waist: "54 cm", legOpening: "36 cm" },
+      },
+    ],
+    sizeGuideId: "guide-cargo-shorts",
+    sizeGuide: SHORTS_SIZE_GUIDE,
   },
   {
     id: "prod-desert-camo-shorts",
@@ -186,7 +233,7 @@ export const CATALOG_PRODUCTS: Product[] = [
     officialName: null,
     category: "shorts",
     silhouette: "Cargo Shorts",
-    description: "Desert camo edition technical cargo shorts tailored from durable ripstop cotton.",
+    description: null,
     price: null,
     currency: "EGP",
     images: ["/products/desert-camo-shorts.png"],
@@ -197,6 +244,28 @@ export const CATALOG_PRODUCTS: Product[] = [
     featured: true,
     badge: "COLLECTION",
     tags: ["shorts", "desert", "camo", "bottoms"],
+    variants: [
+      {
+        id: "var-desert-s",
+        size: "S",
+        stockStatus: "unknown",
+        measurements: { length: "52 cm", waist: "44 cm", legOpening: "30 cm" },
+      },
+      {
+        id: "var-desert-m",
+        size: "M",
+        stockStatus: "unknown",
+        measurements: { length: "56 cm", waist: "48 cm", legOpening: "33 cm" },
+      },
+      {
+        id: "var-desert-l",
+        size: "L",
+        stockStatus: "unknown",
+        measurements: { length: "61 cm", waist: "54 cm", legOpening: "36 cm" },
+      },
+    ],
+    sizeGuideId: "guide-cargo-shorts",
+    sizeGuide: SHORTS_SIZE_GUIDE,
   },
 ];
 
