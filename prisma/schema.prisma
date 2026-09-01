@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ───
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  UNAVAILABLE
+  UNKNOWN
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PACKING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+}
+
+// ─── PRODUCT & CATALOG ───
+
+model Product {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  workingName    String
+  officialName   String?
+  category       String
+  silhouette     String?
+  description    String?
+  priceMinor     Int?
+  currency       String           @default("EGP")
+  thumbnail      String?
+  hasAlpha       Boolean          @default(true)
+  gradientKey    String?
+  gradientConfig Json?
+  active         Boolean          @default(true)
+  featured       Boolean          @default(false)
+  sortOrder      Int              @default(0)
+  badge          String?
+  tags           String[]         @default([])
+  sizeGuideId    String?
+  sizeGuide      SizeGuide?       @relation(fields: [sizeGuideId], references: [id], onDelete: SetNull)
+  media          ProductMedia[]
+  variants       ProductVariant[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([category, active])
+  @@index([featured, active])
+}
+
+model ProductMedia {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  src       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  hasAlpha  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
+}
+
+model ProductVariant {
+  id            String      @id @default(cuid())
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size          String?
+  sku           String?
+  stockStatus   StockStatus @default(UNKNOWN)
+  stockQuantity Int?
+  measurements  Json?
+  active        Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([productId, active])
+}
+
+// ─── FLEXIBLE SIZE GUIDE ARCHITECTURE ───
+
+model SizeGuide {
+  id        String            @id
+  name      String
+  unit      String            @default("CM")
+  notes     String?
+  products  Product[]
+  columns   SizeGuideColumn[]
+  rows      SizeGuideRow[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model SizeGuideColumn {
+  id        String          @id @default(cuid())
+  guideId   String
+  guide     SizeGuide       @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  key       String
+  label     String
+  sortOrder Int             @default(0)
+  cells     SizeGuideCell[]
+
+  @@unique([guideId, key])
+}
+
+model SizeGuideRow {
+  id        String          @id @default(cuid())
+  guideId   String
+  guide     SizeGuide       @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int             @default(0)
+  cells     SizeGuideCell[]
+
+  @@unique([guideId, label])
+}
+
+model SizeGuideCell {
+  id       String          @id @default(cuid())
+  rowId    String
+  row      SizeGuideRow    @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  columnId String
+  column   SizeGuideColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  value    String
+
+  @@unique([rowId, columnId])
+}
+
+// ─── COD ORDER MODELS (PHASE 11 PREPARATION) ───
+
+model Order {
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique
+  customerName     String
+  phone            String
+  email            String?
+  address          String
+  cityOrArea       String
+  notes            String?
+  subtotalMinor    Int
+  deliveryFeeMinor Int           @default(0)
+  totalMinor       Int
+  currency         String        @default("EGP")
+  orderStatus      OrderStatus   @default(NEW)
+  paymentStatus    PaymentStatus @default(UNPAID)
+  paymentMethod    PaymentMethod @default(CASH_ON_DELIVERY)
+  items            OrderItem[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([orderStatus, createdAt])
+  @@index([phone])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String?
+  variantId      String?
+  productName    String
+  slug           String
+  size           String?
+  quantity       Int      @default(1)
+  unitPriceMinor Int
+  createdAt      DateTime @default(now())
+
+  @@index([orderId])
+}

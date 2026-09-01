@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProductBySlug, getCatalogProducts } from "@/lib/products/catalog";
+import { getProductBySlug, getCatalogProducts } from "@/lib/data/products";
 import { getProductHoverTheme } from "@/lib/theme/gradient.presets";
 import { MetronaryBackground } from "@/components/background/MetronaryBackground";
 import {

@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# METRONARY
+
+High-concept streetwear storefront designed in Giza, Egypt. Built with Next.js App Router, Tailwind CSS, TypeScript, and Prisma ORM 7 + PostgreSQL.
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Current Development Fallback
+Without a configured `DATABASE_URL`, the storefront automatically and seamlessly operates using verified local seed/fallback catalog data. No database instance is required to run, build, or preview the application.
 
-## Learn More
+### Real PostgreSQL Setup (Future Phase)
+When connecting to a live PostgreSQL database:
 
-To learn more about Next.js, take a look at the following resources:
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Set your valid PostgreSQL connection string in `.env`:
+   ```bash
+   DATABASE_URL="postgresql://user:password@localhost:5432/metronary?schema=public"
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Generate the Prisma Client:
+   ```bash
+   npm run db:generate
+   ```
 
-## Deploy on Vercel
+4. Apply database schema migrations:
+   ```bash
+   npm run db:migrate
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Seed the database with verified deterministic catalog data:
+   ```bash
+   npm run db:seed
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> **Note**: Migrations and database seeding have **not** been executed yet. The application currently runs safely on verified local catalog data.
