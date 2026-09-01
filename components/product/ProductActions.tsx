@@ -5,6 +5,7 @@ import type { Product, ProductVariant, SizeGuide } from "@/lib/products/types";
 import { ProductSizeSelector } from "./ProductSizeSelector";
 import { ProductAvailability } from "./ProductAvailability";
 import { useCart } from "@/components/cart/CartProvider";
+import { DevCartPreview } from "@/components/dev/DevCartPreview";
 
 interface ProductActionsProps {
   product?: Product;
@@ -98,6 +99,11 @@ export function ProductActions({
       >
         {getButtonText()}
       </button>
+
+      {/* ── Development-Only Preview Control (Omitted in production builds) ── */}
+      {product && (
+        <DevCartPreview product={product} selectedVariant={selectedVariant} />
+      )}
     </div>
   );
 }

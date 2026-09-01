@@ -149,17 +149,11 @@ export function MiniCart({ triggerRef }: MiniCartProps) {
               </span>
             </div>
 
-            {/* Checkout CTA */}
+            {/* Checkout CTA (Navigation enabled whenever items exist in bag) */}
             <Link
               href="/checkout"
               onClick={closeCart}
-              className={`w-full py-3.5 px-4 rounded-lg text-[10px] tracking-[0.24em] uppercase font-semibold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
-                isSubtotalCalculable
-                  ? "bg-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_4px_16px_rgba(251,133,0,0.35)] hover:bg-[var(--m-yellow)] hover:scale-[1.01] active:scale-[0.99]"
-                  : "bg-[rgba(245,244,238,0.06)] border border-[rgba(245,244,238,0.1)] text-[rgba(245,244,238,0.35)] cursor-not-allowed pointer-events-none"
-              }`}
-              aria-disabled={!isSubtotalCalculable}
-              tabIndex={isSubtotalCalculable ? 0 : -1}
+              className="w-full py-3.5 px-4 rounded-lg text-[10px] tracking-[0.24em] uppercase font-semibold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] bg-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_4px_16px_rgba(251,133,0,0.35)] hover:bg-[var(--m-yellow)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
               PROCEED TO CHECKOUT
             </Link>
