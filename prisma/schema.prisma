@@ -35,6 +35,11 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
 // ─── PRODUCT & CATALOG ───
 
 model Product {
@@ -187,4 +192,19 @@ model OrderItem {
   createdAt      DateTime @default(now())
 
   @@index([orderId])
+}
+
+// ─── ADMIN AUTHORIZATION (PHASE 12B) ───
+
+model AdminAccess {
+  id         String    @id @default(cuid())
+  authUserId String    @unique
+  email      String?
+  name       String?
+  role       AdminRole @default(ADMIN)
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([active, role])
 }
