@@ -13,15 +13,66 @@ export interface ProductUpdateActionState {
   fieldErrors?: Record<string, string>;
 }
 
+export interface VariantActionState {
+  success: boolean;
+  message?: string;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+}
+
+const VALID_STOCK_STATUSES = [
+  "UNKNOWN",
+  "IN_STOCK",
+  "LOW_STOCK",
+  "OUT_OF_STOCK",
+  "UNAVAILABLE",
+] as const;
+
+type ValidStockStatus = (typeof VALID_STOCK_STATUSES)[number];
+
+function parseStockQuantity(
+  raw: FormDataEntryValue | null
+): { quantity: number | null; error?: string } {
+  if (raw === null || raw === undefined) {
+    return { quantity: null };
+  }
+  const str = String(raw).trim();
+  if (str === "") {
+    return { quantity: null };
+  }
+  if (!/^\d+$/.test(str)) {
+    if (str.startsWith("-")) {
+      return { quantity: null, error: "Quantity cannot be negative." };
+    }
+    return {
+      quantity: null,
+      error: "Quantity must be a valid integer or blank.",
+    };
+  }
+  const parsed = parseInt(str, 10);
+  if (Number.isNaN(parsed) || !Number.isInteger(parsed) || !Number.isFinite(parsed)) {
+    return {
+      quantity: null,
+      error: "Quantity must be a valid integer or blank.",
+    };
+  }
+  if (parsed < 0) {
+    return {
+      quantity: null,
+      error: "Quantity cannot be negative.",
+    };
+  }
+  if (parsed > 1_000_000) {
+    return {
+      quantity: null,
+      error: "Quantity exceeds allowable limit.",
+    };
+  }
+  return { quantity: parsed };
+}
+
 /**
  * Secure Server Action for Updating Product Core Attributes
- *
- * Rules:
- * - Independently enforces `requireAdmin()` on every execution.
- * - Product ID and Slug are non-editable (slug is preserved and locked).
- * - Price is deterministically parsed from EGP to priceMinor.
- * - Blank price sets priceMinor = null (unpriced, not 0).
- * - Safe sanitization and validation with zero raw Prisma/SQL error exposure.
  */
 export async function updateProductAction(
   productId: string,
@@ -175,7 +226,6 @@ export async function updateProductAction(
       sizeGuideId = null;
     }
 
-    // If sizeGuideId provided, ensure it refers to a real SizeGuide
     if (sizeGuideId) {
       const existingGuide = await prisma.sizeGuide.findUnique({
         where: { id: sizeGuideId },
@@ -186,7 +236,6 @@ export async function updateProductAction(
       }
     }
 
-    // Return field validation errors if any
     if (Object.keys(fieldErrors).length > 0) {
       return {
         success: false,
@@ -235,6 +284,397 @@ export async function updateProductAction(
     return {
       success: false,
       error: "Unable to update product. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action for Updating an Existing Product Variant
+ *
+ * Rules:
+ * - Independently enforces `requireAdmin()`.
+ * - Verifies product exists and variant exists.
+ * - STRICT RELATIONSHIP CHECK: Verifies variant.productId === productId.
+ * - Validates size, SKU, stockStatus enum, stockQuantity (integer >= 0 or null).
+ * - Enforces duplicate active size check within the product.
+ * - Atomic Prisma update with no raw error leak.
+ */
+export async function updateVariantAction(
+  productId: string,
+  variantId: string,
+  _prevState: VariantActionState,
+  formData: FormData
+): Promise<VariantActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return {
+        success: false,
+        error: authError.message,
+      };
+    }
+    return {
+      success: false,
+      error: "Unauthorized: Administrator privileges required.",
+    };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return {
+      success: false,
+      error: "Database service unavailable. Please try again later.",
+    };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  const cleanVariantId = variantId ? variantId.trim() : "";
+
+  if (!cleanProductId || !cleanVariantId) {
+    return {
+      success: false,
+      error: "Invalid product or variant identifier.",
+    };
+  }
+
+  try {
+    // 2. Verify Product Exists
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return {
+        success: false,
+        error: "Product not found.",
+      };
+    }
+
+    // 3. Verify Variant Exists & Belongs to this Product
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: cleanVariantId },
+      select: { id: true, productId: true },
+    });
+
+    if (!variant) {
+      return {
+        success: false,
+        error: "Variant not found.",
+      };
+    }
+
+    if (variant.productId !== product.id) {
+      return {
+        success: false,
+        error: "Security check failed: Variant does not belong to the specified product.",
+      };
+    }
+
+    // 4. Validate Fields
+    const fieldErrors: Record<string, string> = {};
+
+    // Size
+    const rawSize = formData.get("size");
+    const size = typeof rawSize === "string" ? rawSize.trim() : "";
+    if (!size) {
+      fieldErrors.size = "Size is required.";
+    } else if (size.length > 50) {
+      fieldErrors.size = "Size must not exceed 50 characters.";
+    }
+
+    // Active
+    const rawActive = formData.get("active");
+    const active = rawActive === "true" || rawActive === "on" || rawActive === "1";
+
+    // Duplicate Active Size Protection
+    if (size && active) {
+      const otherVariants = await prisma.productVariant.findMany({
+        where: {
+          productId: product.id,
+          id: { not: variant.id },
+        },
+        select: { size: true, active: true },
+      });
+
+      const duplicate = otherVariants.some(
+        (v) =>
+          v.active &&
+          v.size?.trim().toLowerCase() === size.trim().toLowerCase()
+      );
+
+      if (duplicate) {
+        fieldErrors.size = `An active variant with size "${size}" already exists.`;
+      }
+    }
+
+    // SKU
+    const rawSku = formData.get("sku");
+    const sku = typeof rawSku === "string" ? rawSku.trim() : "";
+    if (sku.length > 100) {
+      fieldErrors.sku = "SKU must not exceed 100 characters.";
+    }
+
+    // Stock Status
+    const rawStockStatus = formData.get("stockStatus");
+    const stockStatusCandidate =
+      typeof rawStockStatus === "string" ? rawStockStatus.trim() : "";
+    if (
+      !VALID_STOCK_STATUSES.includes(
+        stockStatusCandidate as ValidStockStatus
+      )
+    ) {
+      fieldErrors.stockStatus = "Invalid stock status selected.";
+    }
+    const stockStatus = stockStatusCandidate as ValidStockStatus;
+
+    // Stock Quantity
+    const { quantity: stockQuantity, error: quantityError } =
+      parseStockQuantity(formData.get("stockQuantity"));
+    if (quantityError) {
+      fieldErrors.stockQuantity = quantityError;
+    }
+
+    // Sort Order
+    const rawSortOrder = formData.get("sortOrder");
+    let sortOrder = 0;
+    if (rawSortOrder !== null && rawSortOrder !== undefined) {
+      const parsedSort = parseInt(String(rawSortOrder).trim(), 10);
+      if (Number.isNaN(parsedSort) || !Number.isFinite(parsedSort)) {
+        fieldErrors.sortOrder = "Sort order must be an integer.";
+      } else {
+        sortOrder = parsedSort;
+      }
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return {
+        success: false,
+        error: "Please fix the variant errors before saving.",
+        fieldErrors,
+      };
+    }
+
+    // 5. Execute Variant Update
+    await prisma.productVariant.update({
+      where: { id: variant.id },
+      data: {
+        size,
+        sku: sku || null,
+        stockStatus,
+        stockQuantity,
+        active,
+        sortOrder,
+      },
+    });
+
+    // 6. Revalidate Routes
+    revalidatePath("/admin/products");
+    revalidatePath(`/admin/products/${product.id}`);
+    revalidatePath("/");
+    revalidatePath("/shop");
+    if (product.slug) {
+      revalidatePath(`/product/${product.slug}`);
+    }
+
+    return {
+      success: true,
+      message: "Variant updated successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Variant Update] Error updating variant ${cleanVariantId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to update variant. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action for Creating a New Product Variant
+ *
+ * Rules:
+ * - Independently enforces `requireAdmin()`.
+ * - Verifies product exists.
+ * - Requires non-empty size string.
+ * - Prevents duplicate active size within product.
+ * - Default stockStatus is UNKNOWN (not IN_STOCK).
+ * - Default stockQuantity is null.
+ * - Atomic Prisma create with no raw error leak.
+ */
+export async function createVariantAction(
+  productId: string,
+  _prevState: VariantActionState,
+  formData: FormData
+): Promise<VariantActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return {
+        success: false,
+        error: authError.message,
+      };
+    }
+    return {
+      success: false,
+      error: "Unauthorized: Administrator privileges required.",
+    };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return {
+      success: false,
+      error: "Database service unavailable. Please try again later.",
+    };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  if (!cleanProductId) {
+    return {
+      success: false,
+      error: "Invalid product identifier.",
+    };
+  }
+
+  try {
+    // 2. Verify Product Exists
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return {
+        success: false,
+        error: "Product not found.",
+      };
+    }
+
+    // 3. Validate Fields
+    const fieldErrors: Record<string, string> = {};
+
+    // Size (Required for fashion garments)
+    const rawSize = formData.get("size");
+    const size = typeof rawSize === "string" ? rawSize.trim() : "";
+    if (!size) {
+      fieldErrors.size = "Size is required.";
+    } else if (size.length > 50) {
+      fieldErrors.size = "Size must not exceed 50 characters.";
+    }
+
+    // Active (Default true)
+    const rawActive = formData.get("active");
+    const active =
+      rawActive === null
+        ? true
+        : rawActive === "true" || rawActive === "on" || rawActive === "1";
+
+    // Duplicate Active Size Protection
+    if (size && active) {
+      const existingVariants = await prisma.productVariant.findMany({
+        where: { productId: product.id },
+        select: { size: true, active: true },
+      });
+
+      const duplicate = existingVariants.some(
+        (v) =>
+          v.active &&
+          v.size?.trim().toLowerCase() === size.trim().toLowerCase()
+      );
+
+      if (duplicate) {
+        fieldErrors.size = `An active variant with size "${size}" already exists.`;
+      }
+    }
+
+    // SKU (Optional)
+    const rawSku = formData.get("sku");
+    const sku = typeof rawSku === "string" ? rawSku.trim() : "";
+    if (sku.length > 100) {
+      fieldErrors.sku = "SKU must not exceed 100 characters.";
+    }
+
+    // Stock Status (Default UNKNOWN)
+    const rawStockStatus = formData.get("stockStatus");
+    let stockStatus: ValidStockStatus = "UNKNOWN";
+    if (rawStockStatus && typeof rawStockStatus === "string") {
+      const candidate = rawStockStatus.trim();
+      if (VALID_STOCK_STATUSES.includes(candidate as ValidStockStatus)) {
+        stockStatus = candidate as ValidStockStatus;
+      } else {
+        fieldErrors.stockStatus = "Invalid stock status selected.";
+      }
+    }
+
+    // Stock Quantity (Optional, Default null)
+    const { quantity: stockQuantity, error: quantityError } =
+      parseStockQuantity(formData.get("stockQuantity"));
+    if (quantityError) {
+      fieldErrors.stockQuantity = quantityError;
+    }
+
+    // Sort Order
+    const rawSortOrder = formData.get("sortOrder");
+    let sortOrder = 0;
+    if (rawSortOrder !== null && rawSortOrder !== undefined && String(rawSortOrder).trim() !== "") {
+      const parsedSort = parseInt(String(rawSortOrder).trim(), 10);
+      if (Number.isNaN(parsedSort) || !Number.isFinite(parsedSort)) {
+        fieldErrors.sortOrder = "Sort order must be an integer.";
+      } else {
+        sortOrder = parsedSort;
+      }
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return {
+        success: false,
+        error: "Please fix the variant errors before creating.",
+        fieldErrors,
+      };
+    }
+
+    // 4. Create Variant
+    await prisma.productVariant.create({
+      data: {
+        productId: product.id,
+        size,
+        sku: sku || null,
+        stockStatus,
+        stockQuantity,
+        active,
+        sortOrder,
+      },
+    });
+
+    // 5. Revalidate Routes
+    revalidatePath("/admin/products");
+    revalidatePath(`/admin/products/${product.id}`);
+    revalidatePath("/");
+    revalidatePath("/shop");
+    if (product.slug) {
+      revalidatePath(`/product/${product.slug}`);
+    }
+
+    return {
+      success: true,
+      message: "Variant created successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Variant Create] Error creating variant for product ${cleanProductId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to create variant. Please try again.",
     };
   }
 }
