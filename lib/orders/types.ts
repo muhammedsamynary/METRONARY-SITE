@@ -12,6 +12,7 @@ export interface CreateOrderInput {
 export interface CreateOrderSuccessResult {
   success: true;
   orderNumber: string;
+  confirmationToken: string;
   orderId: string;
   subtotalMinor: number;
   deliveryFeeMinor: number;

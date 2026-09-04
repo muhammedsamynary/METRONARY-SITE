@@ -2,7 +2,7 @@ import "server-only";
 import { getPrismaClient } from "@/lib/db/prisma";
 import { validateCheckout } from "@/lib/checkout/checkout-service";
 import { resolveDeliveryFee } from "./delivery";
-import { generateOrderNumber } from "./order-number";
+import { generateOrderNumber, generateConfirmationToken } from "./order-number";
 import type { CreateOrderInput, CreateOrderResult } from "./types";
 
 /**
@@ -14,8 +14,9 @@ import type { CreateOrderInput, CreateOrderResult } from "./types";
  * 3. Enforces Cash on Delivery defaults: orderStatus=NEW, paymentStatus=UNPAID, paymentMethod=CASH_ON_DELIVERY.
  * 4. Resolves server-side delivery fee before committing.
  * 5. Atomically creates Order, OrderItem snapshots, and decrements tracked inventory within a single Prisma transaction.
- * 6. Concurrency-safe: Conditional atomic updates prevent stock from decrementing below zero.
- * 7. Clean result types: Never leaks database connection strings, SQL errors, or internal exceptions.
+ * 6. Generates customer-visible orderNumber (MET-XXXXXXXX) and secret anonymous confirmationToken (128-bit hex).
+ * 7. Concurrency-safe: Conditional atomic updates prevent stock from decrementing below zero.
+ * 8. Clean result types: Never leaks database connection strings, SQL errors, or internal exceptions.
  */
 export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
   // 1. Initial Input Sanity Checks
@@ -191,10 +192,34 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
         throw new Error("ORDER_NUMBER_COLLISION");
       }
 
-      // Step C: Persist Order & OrderItem Snapshots
+      // Step C: Generate unique 128-bit confirmation token for secret guest URL access
+      let confirmationToken = generateConfirmationToken();
+      let isTokenUnique = false;
+      let tokenAttempts = 0;
+
+      while (!isTokenUnique && tokenAttempts < 5) {
+        const existingToken = await tx.order.findUnique({
+          where: { confirmationToken },
+          select: { id: true },
+        });
+
+        if (!existingToken) {
+          isTokenUnique = true;
+        } else {
+          confirmationToken = generateConfirmationToken();
+          tokenAttempts++;
+        }
+      }
+
+      if (!isTokenUnique) {
+        throw new Error("CONFIRMATION_TOKEN_COLLISION");
+      }
+
+      // Step D: Persist Order & OrderItem Snapshots
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
+          confirmationToken,
           customerName: sanitizedCustomer.customerName,
           phone: sanitizedCustomer.phone,
           email: sanitizedCustomer.email ?? null,
@@ -223,6 +248,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
         select: {
           id: true,
           orderNumber: true,
+          confirmationToken: true,
           subtotalMinor: true,
           deliveryFeeMinor: true,
           totalMinor: true,
@@ -236,6 +262,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     return {
       success: true,
       orderNumber: result.orderNumber,
+      confirmationToken: result.confirmationToken,
       orderId: result.id,
       subtotalMinor: result.subtotalMinor,
       deliveryFeeMinor: result.deliveryFeeMinor,

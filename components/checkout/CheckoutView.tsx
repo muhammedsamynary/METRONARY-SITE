@@ -2,15 +2,19 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
 import { CheckoutForm } from "./CheckoutForm";
 import { CheckoutPaymentMethod } from "./CheckoutPaymentMethod";
 import { CheckoutSummary } from "./CheckoutSummary";
 import { validateCustomerDetails } from "@/lib/checkout/customer-validation";
+import { mapCartItemsToCheckoutInput } from "@/lib/checkout/cart-mapper";
+import { submitOrderAction } from "@/app/checkout/actions";
 import type { CustomerDetailsInput } from "@/lib/checkout/types";
 
 export function CheckoutView() {
-  const { items, subtotal, isSubtotalCalculable } = useCart();
+  const router = useRouter();
+  const { items, subtotal, isSubtotalCalculable, clearCart } = useCart();
 
   const [formData, setFormData] = useState<CustomerDetailsInput>({
     customerName: "",
@@ -22,9 +26,12 @@ export function CheckoutView() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const handleFieldChange = (field: keyof CustomerDetailsInput, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setSubmissionError(null);
     // Clear field error on edit
     if (errors[field]) {
       setErrors((prev) => {
@@ -55,11 +62,14 @@ export function CheckoutView() {
     formData.address.trim().length >= 5 &&
     formData.cityOrArea.trim().length >= 2;
 
-  const handlePlaceOrder = () => {
-    const result = validateCustomerDetails(formData);
-    if (result.errors.length > 0) {
+  const handlePlaceOrder = async () => {
+    if (isSubmitting) return;
+
+    // 1. Client-Side Field Validation
+    const validationResult = validateCustomerDetails(formData);
+    if (validationResult.errors.length > 0) {
       const errorMap: Record<string, string> = {};
-      for (const err of result.errors) {
+      for (const err of validationResult.errors) {
         if (err.field) {
           errorMap[err.field] = err.message;
         }
@@ -67,7 +77,35 @@ export function CheckoutView() {
       setErrors(errorMap);
       return;
     }
-    // Architecture boundary ready for Phase 11C (no mutations in Phase 11B)
+
+    setIsSubmitting(true);
+    setSubmissionError(null);
+
+    try {
+      // 2. Strip client cart down to minimum identifiers only
+      const checkoutItems = mapCartItemsToCheckoutInput(items);
+
+      // 3. Call Server Action
+      const response = await submitOrderAction({
+        customer: formData,
+        items: checkoutItems,
+      });
+
+      if (!response.success) {
+        setSubmissionError(
+          response.errors[0]?.message || "Unable to place order. Please review your cart and details."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 4. On confirmed success: clear client cart and navigate to secret token confirmation URL
+      clearCart();
+      router.push(`/order/${response.confirmationToken}`);
+    } catch {
+      setSubmissionError("A network error occurred. Please verify your connection and try again.");
+      setIsSubmitting(false);
+    }
   };
 
   // ─── 1. Empty Bag State ───
@@ -131,6 +169,31 @@ export function CheckoutView() {
         </h1>
       </div>
 
+      {/* ── Global Submission Error Banner ── */}
+      {submissionError && (
+        <div className="mb-6 p-4 rounded-xl bg-[rgba(239,68,68,0.12)] border border-[rgba(239,68,68,0.35)] flex items-center gap-3 animate-fadeIn">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-red-400 shrink-0"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p className="text-xs font-mono text-red-200 leading-relaxed">
+            {submissionError}
+          </p>
+        </div>
+      )}
+
       {/* ── Main Two-Column Stage ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         {/* ── Left Column: Delivery Form + Payment Card (7 cols) ── */}
@@ -159,6 +222,7 @@ export function CheckoutView() {
               subtotal={subtotal}
               isSubtotalCalculable={isSubtotalCalculable}
               isFormValid={isFormValid}
+              isSubmitting={isSubmitting}
               onSubmit={handlePlaceOrder}
             />
           </div>

@@ -161,7 +161,7 @@ export function CheckoutSummary({
           }`}
           aria-disabled={!canPlaceOrder}
         >
-          {isSubmitting ? "VALIDATING ORDER..." : "PLACE ORDER"}
+          {isSubmitting ? "PLACING ORDER..." : "PLACE ORDER"}
         </button>
 
         <p className="text-center text-[10px] font-mono text-[rgba(245,244,238,0.4)] mt-2.5 uppercase tracking-wider">
