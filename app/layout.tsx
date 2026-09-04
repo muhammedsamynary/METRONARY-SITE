@@ -1,17 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { SiteHeader, SiteFooter } from "@/components/layout/SiteChrome";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { SITE } from "@/lib/constants";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-  preload: true,
-});
+const inter = {
+  variable: "font-sans",
+};
 
 export const metadata: Metadata = {
   title: {
@@ -60,9 +55,9 @@ export default function RootLayout({
         }}
       >
         <CartProvider>
-          <Header />
+          <SiteHeader />
           <main className="flex-1">{children}</main>
-          <Footer />
+          <SiteFooter />
         </CartProvider>
       </body>
     </html>
