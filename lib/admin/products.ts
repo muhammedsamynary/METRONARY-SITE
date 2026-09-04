@@ -309,3 +309,122 @@ export async function getAdminProductById(
     return null;
   }
 }
+
+/**
+ * Fetch Size Guides for Product Assignment Dropdown
+ */
+export interface AdminSizeGuideOption {
+  id: string;
+  name: string;
+  unit: string;
+}
+
+export async function getAdminSizeGuides(): Promise<AdminSizeGuideOption[]> {
+  const prisma = getPrismaClient();
+  if (!prisma) return [];
+
+  try {
+    const guides = await prisma.sizeGuide.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+      },
+    });
+    return guides;
+  } catch (error) {
+    console.error(
+      "[METRONARY Admin Size Guides] Failed to fetch size guides:",
+      error
+    );
+    return [];
+  }
+}
+
+/**
+ * Deterministic Price Parser: EGP Decimal -> priceMinor Integer Units
+ *
+ * Examples:
+ * - "1500" -> 150000
+ * - "1299.50" -> 129950
+ * - "1299.5" -> 129950
+ * - "" / null / undefined -> null
+ * - "-20" -> error
+ * - "abc" -> error
+ * - "0" -> error (must be > 0 if supplied)
+ */
+export function parseEgpToMinor(
+  input: string | null | undefined
+): { priceMinor: number | null; error?: string } {
+  if (input === null || input === undefined) {
+    return { priceMinor: null };
+  }
+
+  const trimmed = input.trim();
+  if (trimmed === "") {
+    return { priceMinor: null };
+  }
+
+  // Enforce positive number format with optional up to 2 decimal places
+  const priceRegex = /^\d+(\.\d{1,2})?$/;
+  if (!priceRegex.test(trimmed)) {
+    if (trimmed.startsWith("-")) {
+      return { priceMinor: null, error: "Price must be a positive number." };
+    }
+    return {
+      priceMinor: null,
+      error: "Invalid price format. Enter an amount in EGP (e.g. 1500 or 1299.50).",
+    };
+  }
+
+  const [wholeStr, decimalStr = ""] = trimmed.split(".");
+  const whole = parseInt(wholeStr, 10);
+  if (Number.isNaN(whole) || !Number.isFinite(whole)) {
+    return { priceMinor: null, error: "Invalid price value." };
+  }
+
+  const decPadded = decimalStr.padEnd(2, "0").slice(0, 2);
+  const fraction = parseInt(decPadded, 10);
+  if (Number.isNaN(fraction) || !Number.isFinite(fraction)) {
+    return { priceMinor: null, error: "Invalid price fraction." };
+  }
+
+  const priceMinor = whole * 100 + fraction;
+
+  if (priceMinor <= 0) {
+    return {
+      priceMinor: null,
+      error: "If a price is provided, it must be greater than 0 EGP.",
+    };
+  }
+
+  // Safety ceiling (e.g. 10,000,000 EGP)
+  if (priceMinor > 1_000_000_000) {
+    return {
+      priceMinor: null,
+      error: "Price exceeds maximum allowable limit.",
+    };
+  }
+
+  return { priceMinor };
+}
+
+/**
+ * Normalizes comma-separated tags input
+ * - Trims each tag
+ * - Strips empty entries
+ * - Deduplicates while preserving order
+ */
+export function parseTagsInput(input: string | null | undefined): string[] {
+  if (!input || typeof input !== "string") {
+    return [];
+  }
+
+  const tokens = input
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0 && t.length <= 50);
+
+  return Array.from(new Set(tokens));
+}
