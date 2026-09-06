@@ -319,7 +319,7 @@ export interface AdminSizeGuideOption {
   unit: string;
 }
 
-export async function getAdminSizeGuides(): Promise<AdminSizeGuideOption[]> {
+export async function getAdminSizeGuideOptions(): Promise<AdminSizeGuideOption[]> {
   const prisma = getPrismaClient();
   if (!prisma) return [];
 

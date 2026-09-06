@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAdminProductById, getAdminSizeGuides } from "@/lib/admin/products";
+import { getAdminProductById, getAdminSizeGuideOptions } from "@/lib/admin/products";
 import { ProductEditorForm } from "@/components/admin/ProductEditorForm";
 
 interface ProductDetailPageProps {
@@ -25,7 +25,7 @@ export default async function AdminProductDetailPage({
   const { id } = await params;
   const [product, sizeGuides] = await Promise.all([
     getAdminProductById(id),
-    getAdminSizeGuides(),
+    getAdminSizeGuideOptions(),
   ]);
 
   if (!product) {
