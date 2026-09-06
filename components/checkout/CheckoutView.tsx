@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
-import { CheckoutForm } from "./CheckoutForm";
+import { CheckoutForm, type DeliveryQuoteState } from "./CheckoutForm";
 import { CheckoutPaymentMethod } from "./CheckoutPaymentMethod";
 import { CheckoutSummary } from "./CheckoutSummary";
 import { validateCustomerDetails } from "@/lib/checkout/customer-validation";
 import { mapCartItemsToCheckoutInput } from "@/lib/checkout/cart-mapper";
 import { submitOrderAction } from "@/app/checkout/actions";
+import { quoteDeliveryAction } from "@/app/checkout/delivery-actions";
 import type { CustomerDetailsInput } from "@/lib/checkout/types";
 
 export function CheckoutView() {
@@ -25,13 +26,90 @@ export function CheckoutView() {
     notes: "",
   });
 
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteState>({
+    status: "empty",
+    zoneName: null,
+    feeMinor: null,
+    currency: "EGP",
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
+  // Debounced delivery quote effect (350ms)
+  useEffect(() => {
+    const trimmed = formData.cityOrArea.trim();
+    if (!trimmed) return;
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await quoteDeliveryAction(trimmed);
+        if (!isCurrent) return;
+
+        if (result.success && result.configured && result.deliveryFeeMinor !== null) {
+          setDeliveryQuote({
+            status: "configured",
+            zoneName: result.zoneName,
+            feeMinor: result.deliveryFeeMinor,
+            currency: result.currency,
+          });
+        } else if (result.success && !result.configured) {
+          setDeliveryQuote({
+            status: "unavailable",
+            zoneName: null,
+            feeMinor: null,
+            currency: result.currency,
+            message: result.message || "Delivery is not currently configured for this area.",
+          });
+        } else {
+          setDeliveryQuote({
+            status: "error",
+            zoneName: null,
+            feeMinor: null,
+            currency: "EGP",
+            message: result.message || "Unable to calculate delivery fee. Please try again.",
+          });
+        }
+      } catch {
+        if (!isCurrent) return;
+        setDeliveryQuote({
+          status: "error",
+          zoneName: null,
+          feeMinor: null,
+          currency: "EGP",
+          message: "Unable to calculate delivery fee. Please try again.",
+        });
+      }
+    }, 350);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [formData.cityOrArea]);
+
   const handleFieldChange = (field: keyof CustomerDetailsInput, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setSubmissionError(null);
+
+    if (field === "cityOrArea") {
+      if (!value.trim()) {
+        setDeliveryQuote({
+          status: "empty",
+          zoneName: null,
+          feeMinor: null,
+          currency: "EGP",
+        });
+      } else {
+        setDeliveryQuote((prev) => ({
+          ...prev,
+          status: "checking",
+        }));
+      }
+    }
+
     // Clear field error on edit
     if (errors[field]) {
       setErrors((prev) => {
@@ -78,14 +156,20 @@ export function CheckoutView() {
       return;
     }
 
+    // 2. Validate Delivery Area is configured
+    if (deliveryQuote.status !== "configured" || deliveryQuote.feeMinor === null) {
+      setSubmissionError("Please provide a valid, configured delivery area in Egypt before placing your order.");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmissionError(null);
 
     try {
-      // 2. Strip client cart down to minimum identifiers only
+      // 3. Strip client cart down to minimum identifiers only
       const checkoutItems = mapCartItemsToCheckoutInput(items);
 
-      // 3. Call Server Action
+      // 4. Call Server Action (Server independently validates all prices, stock, and delivery zones)
       const response = await submitOrderAction({
         customer: formData,
         items: checkoutItems,
@@ -99,7 +183,7 @@ export function CheckoutView() {
         return;
       }
 
-      // 4. On confirmed success: clear client cart and navigate to secret token confirmation URL
+      // 5. On confirmed success: clear client cart and navigate to secret token confirmation URL
       clearCart();
       router.push(`/order/${response.confirmationToken}`);
     } catch {
@@ -205,6 +289,7 @@ export function CheckoutView() {
               onChange={handleFieldChange}
               onBlur={handleFieldBlur}
               errors={errors}
+              deliveryQuote={deliveryQuote}
             />
           </div>
 
@@ -221,6 +306,7 @@ export function CheckoutView() {
               items={items}
               subtotal={subtotal}
               isSubtotalCalculable={isSubtotalCalculable}
+              deliveryQuote={deliveryQuote}
               isFormValid={isFormValid}
               isSubmitting={isSubmitting}
               onSubmit={handlePlaceOrder}

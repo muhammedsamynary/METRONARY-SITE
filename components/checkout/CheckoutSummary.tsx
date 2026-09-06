@@ -4,11 +4,13 @@ import React from "react";
 import Image from "next/image";
 import type { CartItem } from "@/lib/cart/types";
 import { formatCurrency } from "@/lib/cart/cart-utils";
+import type { DeliveryQuoteState } from "./CheckoutForm";
 
 interface CheckoutSummaryProps {
   items: CartItem[];
   subtotal: number | null;
   isSubtotalCalculable: boolean;
+  deliveryQuote: DeliveryQuoteState;
   isFormValid: boolean;
   isSubmitting?: boolean;
   onSubmit: () => void;
@@ -18,6 +20,7 @@ export function CheckoutSummary({
   items,
   subtotal,
   isSubtotalCalculable,
+  deliveryQuote,
   isFormValid,
   isSubmitting = false,
   onSubmit,
@@ -27,7 +30,38 @@ export function CheckoutSummary({
     (item) => item.unitPrice === null || item.stockStatus === "unknown" || item.stockStatus === "out_of_stock" || item.stockStatus === "unavailable"
   );
 
-  const canPlaceOrder = !hasIneligibleItems && isSubtotalCalculable && isFormValid;
+  // Minor integer calculations (avoids JS float drift)
+  let subtotalMinor: number | null = null;
+  if (isSubtotalCalculable && items.length > 0) {
+    let valid = true;
+    let sumMinor = 0;
+    for (const item of items) {
+      if (item.unitPrice === null || item.unitPrice === undefined || Number.isNaN(item.unitPrice)) {
+        valid = false;
+        break;
+      }
+      const priceMinor = Math.round(item.unitPrice * 100);
+      sumMinor += priceMinor * item.quantity;
+    }
+    if (valid) {
+      subtotalMinor = sumMinor;
+    }
+  }
+
+  let totalMinor: number | null = null;
+  if (subtotalMinor !== null && deliveryQuote.status === "configured" && deliveryQuote.feeMinor !== null) {
+    totalMinor = subtotalMinor + deliveryQuote.feeMinor;
+  }
+
+  const isDeliveryConfigured = deliveryQuote.status === "configured" && deliveryQuote.feeMinor !== null;
+  const canPlaceOrder =
+    items.length > 0 &&
+    !hasIneligibleItems &&
+    isSubtotalCalculable &&
+    subtotal !== null &&
+    isFormValid &&
+    isDeliveryConfigured &&
+    !isSubmitting;
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,24 +135,58 @@ export function CheckoutSummary({
         <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider">
           <span className="text-[rgba(245,244,238,0.6)]">SUBTOTAL</span>
           <span className="font-bold text-[var(--m-cream)]">
-            {isSubtotalCalculable ? formatCurrency(subtotal) : "PRICING PENDING"}
+            {isSubtotalCalculable && subtotalMinor !== null
+              ? formatCurrency(subtotalMinor / 100)
+              : "PRICING PENDING"}
           </span>
         </div>
 
-        {/* Delivery Fee Note */}
+        {/* Delivery Fee */}
         <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider">
           <span className="text-[rgba(245,244,238,0.6)]">DELIVERY</span>
-          <span className="text-[10px] text-[rgba(245,244,238,0.45)] font-semibold">
-            NOT YET CONFIGURED
-          </span>
+          {deliveryQuote.status === "configured" && deliveryQuote.feeMinor !== null ? (
+            <span className="font-bold text-[var(--m-cream)]">
+              {formatCurrency(deliveryQuote.feeMinor / 100, deliveryQuote.currency)}
+            </span>
+          ) : deliveryQuote.status === "checking" ? (
+            <span className="text-[10px] text-[rgba(245,244,238,0.45)] font-semibold">
+              CHECKING...
+            </span>
+          ) : deliveryQuote.status === "unavailable" ? (
+            <span className="text-[10px] text-[var(--m-gold)] font-semibold">
+              NOT AVAILABLE
+            </span>
+          ) : deliveryQuote.status === "error" ? (
+            <span className="text-[10px] text-red-400 font-semibold">
+              UNAVAILABLE
+            </span>
+          ) : (
+            <span className="text-[10px] text-[rgba(245,244,238,0.45)] font-semibold">
+              PENDING AREA
+            </span>
+          )}
         </div>
 
-        {/* Total */}
+        {/* Total (Preview Only) */}
         <div className="border-t border-[rgba(245,244,238,0.08)] pt-3 flex items-center justify-between text-sm font-mono uppercase tracking-wider">
           <span className="font-bold text-[var(--m-cream)]">TOTAL</span>
-          <span className="font-bold text-[var(--m-gold)]">
-            {isSubtotalCalculable ? formatCurrency(subtotal) : "PENDING PRICING & DELIVERY"}
-          </span>
+          {totalMinor !== null ? (
+            <span className="font-bold text-[var(--m-gold)]">
+              {formatCurrency(totalMinor / 100, deliveryQuote.currency)}
+            </span>
+          ) : deliveryQuote.status === "checking" ? (
+            <span className="text-xs text-[rgba(245,244,238,0.45)] font-semibold">
+              CALCULATING...
+            </span>
+          ) : deliveryQuote.status === "unavailable" ? (
+            <span className="text-xs text-[var(--m-gold)] font-semibold">
+              DELIVERY NOT AVAILABLE
+            </span>
+          ) : (
+            <span className="text-xs text-[rgba(245,244,238,0.45)] font-semibold">
+              PENDING AREA
+            </span>
+          )}
         </div>
       </div>
 

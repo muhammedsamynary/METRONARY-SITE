@@ -1,13 +1,23 @@
-"use client";
-
 import React from "react";
 import type { CustomerDetailsInput } from "@/lib/checkout/types";
+import { formatDeliveryFeeEgp } from "@/lib/admin/delivery-utils";
+
+export type DeliveryQuoteStatus = "empty" | "checking" | "configured" | "unavailable" | "error";
+
+export interface DeliveryQuoteState {
+  status: DeliveryQuoteStatus;
+  zoneName: string | null;
+  feeMinor: number | null;
+  currency: string;
+  message?: string;
+}
 
 interface CheckoutFormProps {
   formData: CustomerDetailsInput;
   onChange: (field: keyof CustomerDetailsInput, value: string) => void;
   errors: Record<string, string>;
   onBlur: (field: keyof CustomerDetailsInput) => void;
+  deliveryQuote: DeliveryQuoteState;
 }
 
 export function CheckoutForm({
@@ -15,6 +25,7 @@ export function CheckoutForm({
   onChange,
   errors,
   onBlur,
+  deliveryQuote,
 }: CheckoutFormProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -185,10 +196,37 @@ export function CheckoutForm({
             aria-invalid={Boolean(errors.cityOrArea)}
             aria-describedby={errors.cityOrArea ? "city-error" : undefined}
           />
-          {errors.cityOrArea && (
+          {errors.cityOrArea ? (
             <span id="city-error" className="text-xs text-red-400 font-mono tracking-wide mt-0.5">
               {errors.cityOrArea}
             </span>
+          ) : (
+            <>
+              {deliveryQuote.status === "checking" && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[rgba(245,244,238,0.55)] mt-1 animate-pulse">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[rgba(245,244,238,0.4)]" />
+                  <span>CHECKING DELIVERY...</span>
+                </div>
+              )}
+              {deliveryQuote.status === "configured" && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 font-medium mt-1">
+                  <span>✓</span>
+                  <span>
+                    DELIVERY AVAILABLE — {deliveryQuote.zoneName?.toUpperCase()} — {formatDeliveryFeeEgp(deliveryQuote.feeMinor, deliveryQuote.currency)}
+                  </span>
+                </div>
+              )}
+              {deliveryQuote.status === "unavailable" && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--m-gold)] font-medium mt-1">
+                  <span>DELIVERY IS NOT CURRENTLY AVAILABLE FOR THIS AREA</span>
+                </div>
+              )}
+              {deliveryQuote.status === "error" && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-red-400 font-medium mt-1">
+                  <span>{deliveryQuote.message || "UNABLE TO RESOLVE DELIVERY"}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
