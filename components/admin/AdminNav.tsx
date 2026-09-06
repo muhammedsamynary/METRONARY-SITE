@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/products", label: "PRODUCTS", exact: false },
   { href: "/admin/size-guides", label: "SIZE GUIDES", exact: false },
   { href: "/admin/orders", label: "ORDERS", exact: false },
+  { href: "/admin/delivery", label: "DELIVERY", exact: false },
 ];
 
 export function AdminNav() {

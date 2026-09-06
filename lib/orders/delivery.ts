@@ -1,23 +1,23 @@
 import "server-only";
+import { getPrismaClient } from "@/lib/db/prisma";
+import { normalizeDeliveryKey } from "@/lib/admin/delivery-utils";
 import type { DeliveryFeeResolution } from "./types";
 
 /**
  * Server-Side Delivery Fee Resolver
  *
- * Current Policy:
- * - Delivery rates are currently unconfigured in the production catalog.
- * - Resolves to configured: false and deliveryFeeMinor: null.
- * - Structured to seamlessly support future flat, governorate, or area-based rate tables
- *   without requiring changes to the checkout or order creation pipeline.
+ * Resolves delivery fee for Egyptian destinations:
+ * 1. Normalizes the customer input (trim, lowercase, normalize spaces/punctuation).
+ * 2. Queries active DeliveryZone records in PostgreSQL by normalizedKey.
+ * 3. Returns configured: true with authoritative integer deliveryFeeMinor if active match exists.
+ * 4. Returns configured: false with safe error message if unconfigured or inactive.
  */
 export async function resolveDeliveryFee(
   cityOrArea?: string
 ): Promise<DeliveryFeeResolution> {
-  // Normalize input if provided for future lookup tables
-  const normalizedArea = cityOrArea?.trim().toLowerCase();
+  const normalizedKey = normalizeDeliveryKey(cityOrArea || "");
 
-  // Currently, METRONARY delivery fee structure is pending official rates
-  if (!normalizedArea || normalizedArea.length === 0) {
+  if (!normalizedKey) {
     return {
       configured: false,
       deliveryFeeMinor: null,
@@ -26,11 +26,47 @@ export async function resolveDeliveryFee(
     };
   }
 
-  // Future area/governorate rate resolution logic will be placed here
-  return {
-    configured: false,
-    deliveryFeeMinor: null,
-    currency: "EGP",
-    error: "Delivery fee for Egypt is not yet configured.",
-  };
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return {
+      configured: false,
+      deliveryFeeMinor: null,
+      currency: "EGP",
+      error: "Delivery service is currently unavailable. Please try again later.",
+    };
+  }
+
+  try {
+    const zone = await prisma.deliveryZone.findFirst({
+      where: {
+        normalizedKey,
+        active: true,
+      },
+    });
+
+    if (!zone) {
+      return {
+        configured: false,
+        deliveryFeeMinor: null,
+        currency: "EGP",
+        error: "Delivery fee is not configured for this destination.",
+      };
+    }
+
+    return {
+      configured: true,
+      deliveryFeeMinor: zone.feeMinor,
+      currency: zone.currency || "EGP",
+      zoneId: zone.id,
+      zoneName: zone.name,
+    };
+  } catch (error) {
+    console.error("[METRONARY Delivery Resolver] Database error resolving delivery fee:", error);
+    return {
+      configured: false,
+      deliveryFeeMinor: null,
+      currency: "EGP",
+      error: "Unable to calculate delivery fee. Please try again.",
+    };
+  }
 }

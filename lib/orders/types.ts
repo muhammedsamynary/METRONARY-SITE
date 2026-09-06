@@ -31,5 +31,7 @@ export interface DeliveryFeeResolution {
   configured: boolean;
   deliveryFeeMinor: number | null;
   currency: string;
+  zoneId?: string;
+  zoneName?: string;
   error?: string;
 }

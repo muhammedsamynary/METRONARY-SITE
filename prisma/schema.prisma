@@ -208,3 +208,19 @@ model AdminAccess {
 
   @@index([active, role])
 }
+
+// ─── DELIVERY ZONES (PHASE 12H) ───
+
+model DeliveryZone {
+  id            String   @id @default(cuid())
+  name          String
+  normalizedKey String   @unique
+  feeMinor      Int
+  currency      String   @default("EGP")
+  active        Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
