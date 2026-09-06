@@ -1,6 +1,7 @@
 import React from "react";
 import type { CustomerDetailsInput } from "@/lib/checkout/types";
 import { formatDeliveryFeeEgp } from "@/lib/admin/delivery-utils";
+import type { StorefrontDeliveryOption } from "@/lib/orders/delivery-options";
 
 export type DeliveryQuoteStatus = "empty" | "checking" | "configured" | "unavailable" | "error";
 
@@ -18,6 +19,7 @@ interface CheckoutFormProps {
   errors: Record<string, string>;
   onBlur: (field: keyof CustomerDetailsInput) => void;
   deliveryQuote: DeliveryQuoteState;
+  deliveryOptions: StorefrontDeliveryOption[];
 }
 
 export function CheckoutForm({
@@ -26,7 +28,10 @@ export function CheckoutForm({
   errors,
   onBlur,
   deliveryQuote,
+  deliveryOptions = [],
 }: CheckoutFormProps) {
+  const hasNoActiveZones = deliveryOptions.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="border-b border-[rgba(245,244,238,0.08)] pb-4">
@@ -170,44 +175,74 @@ export function CheckoutForm({
           )}
         </div>
 
-        {/* City / Area */}
+        {/* Delivery Area Selector */}
         <div className="sm:col-span-2 flex flex-col gap-1.5">
           <label
             htmlFor="checkout-city"
             className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(245,244,238,0.7)] flex items-center justify-between"
           >
-            <span>City / Governorate / District <span className="text-[var(--m-gold)]">*</span></span>
+            <span>Delivery Area <span className="text-[var(--m-gold)]">*</span></span>
           </label>
-          <input
-            id="checkout-city"
-            name="cityOrArea"
-            type="text"
-            required
-            autoComplete="address-level2"
-            value={formData.cityOrArea}
-            onChange={(e) => onChange("cityOrArea", e.target.value)}
-            onBlur={() => onBlur("cityOrArea")}
-            placeholder="e.g. Zamalek, Cairo / Dokki, Giza"
-            className={`w-full px-4 py-3 rounded-xl bg-[rgba(0,0,0,0.35)] text-sm text-[var(--m-cream)] placeholder-[rgba(245,244,238,0.2)] border transition-colors outline-none ${
-              errors.cityOrArea
-                ? "border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                : "border-[rgba(245,244,238,0.12)] focus:border-[var(--m-gold)] focus:ring-1 focus:ring-[var(--m-gold)]"
-            }`}
-            aria-invalid={Boolean(errors.cityOrArea)}
-            aria-describedby={errors.cityOrArea ? "city-error" : undefined}
-          />
+
+          <div className="relative">
+            <select
+              id="checkout-city"
+              name="cityOrArea"
+              required
+              value={formData.cityOrArea}
+              onChange={(e) => onChange("cityOrArea", e.target.value)}
+              onBlur={() => onBlur("cityOrArea")}
+              disabled={hasNoActiveZones}
+              className={`w-full px-4 py-3 pr-10 rounded-xl bg-[rgba(0,0,0,0.35)] text-sm text-[var(--m-cream)] border transition-colors outline-none cursor-pointer appearance-none ${
+                errors.cityOrArea
+                  ? "border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  : "border-[rgba(245,244,238,0.12)] focus:border-[var(--m-gold)] focus:ring-1 focus:ring-[var(--m-gold)]"
+              } ${hasNoActiveZones ? "opacity-50 cursor-not-allowed" : ""}`}
+              aria-invalid={Boolean(errors.cityOrArea)}
+              aria-describedby={errors.cityOrArea ? "city-error" : undefined}
+            >
+              <option value="" className="bg-[#110e09] text-[rgba(245,244,238,0.6)]">
+                {hasNoActiveZones ? "DELIVERY CURRENTLY UNAVAILABLE" : "SELECT DELIVERY AREA"}
+              </option>
+              {deliveryOptions.map((opt) => (
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className="bg-[#110e09] text-[var(--m-cream)]"
+                >
+                  {opt.label.toUpperCase()} — {formatDeliveryFeeEgp(opt.feeMinor, opt.currency)}
+                </option>
+              ))}
+            </select>
+
+            {/* Custom Dropdown Arrow */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[rgba(245,244,238,0.4)]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
+          </div>
+
           {errors.cityOrArea ? (
             <span id="city-error" className="text-xs text-red-400 font-mono tracking-wide mt-0.5">
               {errors.cityOrArea}
             </span>
+          ) : hasNoActiveZones ? (
+            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--m-gold)] font-medium mt-1">
+              <span>DELIVERY IS CURRENTLY UNAVAILABLE</span>
+            </div>
           ) : (
             <>
-              {deliveryQuote.status === "checking" && (
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[rgba(245,244,238,0.55)] mt-1 animate-pulse">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[rgba(245,244,238,0.4)]" />
-                  <span>CHECKING DELIVERY...</span>
-                </div>
-              )}
               {deliveryQuote.status === "configured" && (
                 <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 font-medium mt-1">
                   <span>✓</span>
@@ -219,11 +254,6 @@ export function CheckoutForm({
               {deliveryQuote.status === "unavailable" && (
                 <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--m-gold)] font-medium mt-1">
                   <span>DELIVERY IS NOT CURRENTLY AVAILABLE FOR THIS AREA</span>
-                </div>
-              )}
-              {deliveryQuote.status === "error" && (
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-red-400 font-medium mt-1">
-                  <span>{deliveryQuote.message || "UNABLE TO RESOLVE DELIVERY"}</span>
                 </div>
               )}
             </>

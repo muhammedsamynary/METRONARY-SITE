@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
@@ -10,10 +10,14 @@ import { CheckoutSummary } from "./CheckoutSummary";
 import { validateCustomerDetails } from "@/lib/checkout/customer-validation";
 import { mapCartItemsToCheckoutInput } from "@/lib/checkout/cart-mapper";
 import { submitOrderAction } from "@/app/checkout/actions";
-import { quoteDeliveryAction } from "@/app/checkout/delivery-actions";
 import type { CustomerDetailsInput } from "@/lib/checkout/types";
+import type { StorefrontDeliveryOption } from "@/lib/orders/delivery-options";
 
-export function CheckoutView() {
+interface CheckoutViewProps {
+  deliveryOptions?: StorefrontDeliveryOption[];
+}
+
+export function CheckoutView({ deliveryOptions = [] }: CheckoutViewProps) {
   const router = useRouter();
   const { items, subtotal, isSubtotalCalculable, clearCart } = useCart();
 
@@ -26,87 +30,60 @@ export function CheckoutView() {
     notes: "",
   });
 
-  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteState>({
-    status: "empty",
-    zoneName: null,
-    feeMinor: null,
-    currency: "EGP",
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteState>(() => {
+    if (deliveryOptions.length === 0) {
+      return {
+        status: "unavailable",
+        zoneName: null,
+        feeMinor: null,
+        currency: "EGP",
+        message: "Delivery is currently unavailable.",
+      };
+    }
+    return {
+      status: "empty",
+      zoneName: null,
+      feeMinor: null,
+      currency: "EGP",
+    };
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  // Debounced delivery quote effect (350ms)
-  useEffect(() => {
-    const trimmed = formData.cityOrArea.trim();
-    if (!trimmed) return;
-
-    let isCurrent = true;
-    const timer = setTimeout(async () => {
-      try {
-        const result = await quoteDeliveryAction(trimmed);
-        if (!isCurrent) return;
-
-        if (result.success && result.configured && result.deliveryFeeMinor !== null) {
-          setDeliveryQuote({
-            status: "configured",
-            zoneName: result.zoneName,
-            feeMinor: result.deliveryFeeMinor,
-            currency: result.currency,
-          });
-        } else if (result.success && !result.configured) {
-          setDeliveryQuote({
-            status: "unavailable",
-            zoneName: null,
-            feeMinor: null,
-            currency: result.currency,
-            message: result.message || "Delivery is not currently configured for this area.",
-          });
-        } else {
-          setDeliveryQuote({
-            status: "error",
-            zoneName: null,
-            feeMinor: null,
-            currency: "EGP",
-            message: result.message || "Unable to calculate delivery fee. Please try again.",
-          });
-        }
-      } catch {
-        if (!isCurrent) return;
-        setDeliveryQuote({
-          status: "error",
-          zoneName: null,
-          feeMinor: null,
-          currency: "EGP",
-          message: "Unable to calculate delivery fee. Please try again.",
-        });
-      }
-    }, 350);
-
-    return () => {
-      isCurrent = false;
-      clearTimeout(timer);
-    };
-  }, [formData.cityOrArea]);
-
   const handleFieldChange = (field: keyof CustomerDetailsInput, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setSubmissionError(null);
 
+    // Instant delivery quote update on selector change
     if (field === "cityOrArea") {
-      if (!value.trim()) {
+      const trimmed = value.trim();
+      if (!trimmed) {
         setDeliveryQuote({
-          status: "empty",
+          status: deliveryOptions.length === 0 ? "unavailable" : "empty",
           zoneName: null,
           feeMinor: null,
           currency: "EGP",
         });
       } else {
-        setDeliveryQuote((prev) => ({
-          ...prev,
-          status: "checking",
-        }));
+        const matched = deliveryOptions.find((opt) => opt.value === trimmed);
+        if (matched) {
+          setDeliveryQuote({
+            status: "configured",
+            zoneName: matched.label,
+            feeMinor: matched.feeMinor,
+            currency: matched.currency,
+          });
+        } else {
+          setDeliveryQuote({
+            status: "unavailable",
+            zoneName: null,
+            feeMinor: null,
+            currency: "EGP",
+            message: "Delivery is not currently configured for this area.",
+          });
+        }
       }
     }
 
@@ -158,7 +135,7 @@ export function CheckoutView() {
 
     // 2. Validate Delivery Area is configured
     if (deliveryQuote.status !== "configured" || deliveryQuote.feeMinor === null) {
-      setSubmissionError("Please provide a valid, configured delivery area in Egypt before placing your order.");
+      setSubmissionError("Please select a valid delivery area in Egypt before placing your order.");
       return;
     }
 
@@ -290,6 +267,7 @@ export function CheckoutView() {
               onBlur={handleFieldBlur}
               errors={errors}
               deliveryQuote={deliveryQuote}
+              deliveryOptions={deliveryOptions}
             />
           </div>
 
