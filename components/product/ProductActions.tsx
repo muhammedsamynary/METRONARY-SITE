@@ -5,7 +5,6 @@ import type { Product, ProductVariant, SizeGuide } from "@/lib/products/types";
 import { ProductSizeSelector } from "./ProductSizeSelector";
 import { ProductAvailability } from "./ProductAvailability";
 import { useCart } from "@/components/cart/CartProvider";
-import { DevCartPreview } from "@/components/dev/DevCartPreview";
 
 interface ProductActionsProps {
   product?: Product;
@@ -29,18 +28,36 @@ export function ProductActions({
     return null;
   }
 
+  const hasValidPrice =
+    product?.price !== null &&
+    product?.price !== undefined &&
+    product.price > 0;
+
   const isOutOfStock = selectedVariant?.stockStatus === "out_of_stock";
   const isUnavailable = selectedVariant?.stockStatus === "unavailable";
+  const isVariantActive = selectedVariant?.active !== false;
 
-  // Real inventory eligibility logic:
+  const isStockAvailable =
+    selectedVariant?.stockQuantity === null ||
+    selectedVariant?.stockQuantity === undefined ||
+    selectedVariant.stockQuantity > 0;
+
+  // Real database commerce eligibility logic:
   // - A variant must be selected
-  // - AND inventory must be confirmed as in_stock or low_stock
-  // - If inventory is "unknown", the CTA remains disabled / non-transactional
+  // - Product must have a real confirmed price > 0
+  // - Variant must be active
+  // - Inventory must be confirmed as in_stock or low_stock
+  // - If numeric stockQuantity exists, it must be > 0
   const isStockConfirmed =
-    selectedVariant?.stockStatus === "in_stock" ||
-    selectedVariant?.stockStatus === "low_stock";
+    (selectedVariant?.stockStatus === "in_stock" ||
+      selectedVariant?.stockStatus === "low_stock") &&
+    isStockAvailable;
 
-  const isEligible = selectedVariant !== null && isStockConfirmed;
+  const isEligible =
+    selectedVariant !== null &&
+    hasValidPrice &&
+    isVariantActive &&
+    isStockConfirmed;
 
   const handleSelectVariant = (variant: ProductVariant) => {
     setSelectedVariant(variant);
@@ -65,8 +82,10 @@ export function ProductActions({
 
   const getButtonText = () => {
     if (!selectedVariant) return "SELECT SIZE";
+    if (selectedVariant.stockStatus === "unknown") return "AVAILABILITY PENDING";
     if (isOutOfStock) return "OUT OF STOCK";
-    if (isUnavailable) return "UNAVAILABLE";
+    if (isUnavailable || selectedVariant.active === false) return "UNAVAILABLE";
+    if (!hasValidPrice) return "PRICE PENDING";
     return "ADD TO BAG";
   };
 
@@ -99,11 +118,6 @@ export function ProductActions({
       >
         {getButtonText()}
       </button>
-
-      {/* ── Development-Only Preview Control (Omitted in production builds) ── */}
-      {product && (
-        <DevCartPreview product={product} selectedVariant={selectedVariant} />
-      )}
     </div>
   );
 }
