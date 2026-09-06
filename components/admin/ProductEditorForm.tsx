@@ -7,6 +7,7 @@ import { updateProductAction, type ProductUpdateActionState } from "@/app/admin/
 import type { AdminProductDetailResult, AdminSizeGuideOption } from "@/lib/admin/products";
 
 import { ProductVariantManager } from "./ProductVariantManager";
+import { ProductMediaManager } from "./ProductMediaManager";
 
 interface ProductEditorFormProps {
   product: AdminProductDetailResult;
@@ -487,15 +488,18 @@ export function ProductEditorForm({
               </div>
             </div>
 
-            {/* Current Media Assets Card (Read-Only) */}
+            {/* Current Primary Media Thumbnail Card */}
             <div className="p-6 rounded-xl bg-[rgba(22,22,20,0.7)] border border-[rgba(245,244,238,0.08)] flex flex-col gap-4">
               <div className="flex items-center justify-between pb-3 border-b border-[rgba(245,244,238,0.06)]">
                 <h2 className="text-xs font-mono font-bold tracking-[0.2em] uppercase text-[var(--m-gold)]">
-                  CURRENT MEDIA ({product.media.length})
+                  PRIMARY MEDIA ({product.media.length})
                 </h2>
-                <span className="text-[10px] font-mono text-neutral-500 uppercase">
-                  READ-ONLY
-                </span>
+                <a
+                  href="#product-media-section"
+                  className="text-[10px] font-mono text-[var(--m-gold)] hover:underline uppercase tracking-wider"
+                >
+                  MANAGE GALLERY ↓
+                </a>
               </div>
 
               {/* Thumbnail Preview */}
@@ -513,29 +517,33 @@ export function ProductEditorForm({
                     <span className="text-[10px] font-mono text-neutral-500">N/A</span>
                   )}
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col min-w-0">
                   <span className="text-[10px] font-mono uppercase text-[rgba(245,244,238,0.4)]">
-                    Primary Thumbnail
+                    Active Primary Asset
                   </span>
-                  <p className="text-xs font-mono text-[var(--m-cream)] truncate max-w-[200px] mt-0.5">
+                  <p className="text-xs font-mono text-[var(--m-cream)] truncate max-w-[180px] mt-0.5">
                     {product.thumbnail ? product.thumbnail.split("/").pop() : "None"}
                   </p>
                 </div>
               </div>
 
-              {/* Media Gallery Thumbnails */}
+              {/* Quick Gallery Mini-Strip */}
               {product.media.length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {product.media.map((m) => (
                     <div
                       key={m.id}
-                      className="relative aspect-square rounded bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.08)] overflow-hidden flex items-center justify-center p-1"
+                      className={`relative aspect-square rounded bg-[rgba(0,0,0,0.5)] border overflow-hidden flex items-center justify-center p-1 ${
+                        m.isPrimary
+                          ? "border-[rgba(251,133,0,0.4)]"
+                          : "border-[rgba(245,244,238,0.08)]"
+                      }`}
                     >
                       <Image
                         src={m.src}
                         alt={m.alt || product.displayName}
-                        width={80}
-                        height={80}
+                        width={60}
+                        height={60}
                         className="object-contain w-full h-full"
                       />
                       {m.isPrimary && (
@@ -549,7 +557,7 @@ export function ProductEditorForm({
               )}
 
               <p className="text-[10px] font-mono text-[rgba(245,244,238,0.35)] leading-normal pt-1">
-                Media upload and gallery re-ordering will be handled in a dedicated media management phase.
+                Full gallery angles, upload, reordering, and alt text editing are managed in the section below.
               </p>
             </div>
 
@@ -594,6 +602,15 @@ export function ProductEditorForm({
           </div>
         </div>
       </form>
+
+      {/* SECTION: Interactive Product Media Gallery Manager */}
+      <div id="product-media-section">
+        <ProductMediaManager
+          productId={product.id}
+          productName={product.displayName}
+          media={product.media}
+        />
+      </div>
 
       {/* BOTTOM SECTION: Interactive Product Variant & Inventory Manager */}
       <ProductVariantManager

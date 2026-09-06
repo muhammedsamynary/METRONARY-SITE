@@ -68,6 +68,7 @@ export interface AdminProductDetailMedia {
   sortOrder: number;
   isPrimary: boolean;
   hasAlpha: boolean;
+  createdAt?: string;
 }
 
 export interface AdminProductDetailResult {
@@ -290,6 +291,7 @@ export async function getAdminProductById(
         sortOrder: m.sortOrder,
         isPrimary: m.isPrimary,
         hasAlpha: m.hasAlpha,
+        createdAt: m.createdAt.toISOString(),
       })),
       variants: p.variants.map((v) => ({
         id: v.id,

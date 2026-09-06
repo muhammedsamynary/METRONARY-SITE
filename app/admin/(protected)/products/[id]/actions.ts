@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getPrismaClient } from "@/lib/db/prisma";
 import { parseEgpToMinor, parseTagsInput } from "@/lib/admin/products";
 import { AdminAuthorizationError } from "@/lib/admin/errors";
@@ -14,6 +15,13 @@ export interface ProductUpdateActionState {
 }
 
 export interface VariantActionState {
+  success: boolean;
+  message?: string;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+}
+
+export interface MediaActionState {
   success: boolean;
   message?: string;
   error?: string;
@@ -675,6 +683,657 @@ export async function createVariantAction(
     return {
       success: false,
       error: "Unable to create variant. Please try again.",
+    };
+  }
+}
+
+/**
+ * Revalidate all product storefront and admin routes
+ */
+function revalidateAllProductPaths(productId: string, slug?: string | null) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${productId}`);
+  revalidatePath("/");
+  revalidatePath("/shop");
+  if (slug) {
+    revalidatePath(`/product/${slug}`);
+  }
+}
+
+/**
+ * Secure Server Action: Set Primary Product Media
+ */
+export async function setPrimaryProductMediaAction(
+  productId: string,
+  mediaId: string
+): Promise<MediaActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  const cleanMediaId = mediaId ? mediaId.trim() : "";
+
+  if (!cleanProductId || !cleanMediaId) {
+    return { success: false, error: "Invalid product or media identifier." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    const targetMedia = await prisma.productMedia.findUnique({
+      where: { id: cleanMediaId },
+    });
+
+    if (!targetMedia) {
+      return { success: false, error: "Media record not found." };
+    }
+
+    if (targetMedia.productId !== product.id) {
+      return {
+        success: false,
+        error: "Security violation: Media does not belong to specified product.",
+      };
+    }
+
+    // Atomic transaction: unset other primaries, set this one, sync product thumbnail
+    await prisma.$transaction([
+      prisma.productMedia.updateMany({
+        where: { productId: product.id },
+        data: { isPrimary: false },
+      }),
+      prisma.productMedia.update({
+        where: { id: targetMedia.id },
+        data: { isPrimary: true },
+      }),
+      prisma.product.update({
+        where: { id: product.id },
+        data: {
+          thumbnail: targetMedia.src,
+          hasAlpha: targetMedia.hasAlpha,
+        },
+      }),
+    ]);
+
+    revalidateAllProductPaths(product.id, product.slug);
+
+    return {
+      success: true,
+      message: "Primary product image updated successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Media Set Primary] Error updating media ${cleanMediaId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to set primary image. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action: Update Existing Product Media Metadata (Alt Text, Sort Order, Alpha)
+ */
+export async function updateProductMediaAction(
+  productId: string,
+  mediaId: string,
+  _prevState: MediaActionState,
+  formData: FormData
+): Promise<MediaActionState> {
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  const cleanMediaId = mediaId ? mediaId.trim() : "";
+
+  if (!cleanProductId || !cleanMediaId) {
+    return { success: false, error: "Invalid product or media identifier." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    const existingMedia = await prisma.productMedia.findUnique({
+      where: { id: cleanMediaId },
+    });
+
+    if (!existingMedia || existingMedia.productId !== product.id) {
+      return { success: false, error: "Media not found or does not belong to product." };
+    }
+
+    // Parse Alt Text
+    const rawAlt = formData.get("alt");
+    let alt: string | null = typeof rawAlt === "string" ? rawAlt.trim() : null;
+    if (alt === "") alt = null;
+    if (alt && alt.length > 300) {
+      return {
+        success: false,
+        error: "Alt text must not exceed 300 characters.",
+      };
+    }
+
+    // Parse Sort Order
+    const rawSortOrder = formData.get("sortOrder");
+    let sortOrder = existingMedia.sortOrder;
+    if (rawSortOrder !== null && rawSortOrder !== undefined && String(rawSortOrder).trim() !== "") {
+      const parsedSort = parseInt(String(rawSortOrder).trim(), 10);
+      if (!Number.isNaN(parsedSort) && Number.isFinite(parsedSort)) {
+        sortOrder = parsedSort;
+      }
+    }
+
+    // Parse Has Alpha
+    const rawHasAlpha = formData.get("hasAlpha");
+    const hasAlpha = rawHasAlpha === "true" || rawHasAlpha === "on" || rawHasAlpha === "1";
+
+    await prisma.productMedia.update({
+      where: { id: existingMedia.id },
+      data: {
+        alt,
+        sortOrder,
+        hasAlpha,
+      },
+    });
+
+    // If this media is primary, sync product hasAlpha
+    if (existingMedia.isPrimary) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { hasAlpha },
+      });
+    }
+
+    revalidateAllProductPaths(product.id, product.slug);
+
+    return {
+      success: true,
+      message: "Media metadata updated successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Media Update] Error updating media ${cleanMediaId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to update media. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action: Remove Product Media Record
+ */
+export async function deleteProductMediaAction(
+  productId: string,
+  mediaId: string
+): Promise<MediaActionState> {
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  const cleanMediaId = mediaId ? mediaId.trim() : "";
+
+  if (!cleanProductId || !cleanMediaId) {
+    return { success: false, error: "Invalid product or media identifier." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    const existingMedia = await prisma.productMedia.findUnique({
+      where: { id: cleanMediaId },
+    });
+
+    if (!existingMedia || existingMedia.productId !== product.id) {
+      return { success: false, error: "Media not found or does not belong to product." };
+    }
+
+    // If the image was uploaded to Supabase Storage, attempt storage object deletion
+    const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "product-media";
+    if (existingMedia.src.includes(`/storage/v1/object/public/${bucket}/`)) {
+      try {
+        const supabase = await createClient();
+        const pathMatch = existingMedia.src.split(`/storage/v1/object/public/${bucket}/`)[1];
+        if (pathMatch) {
+          await supabase.storage.from(bucket).remove([decodeURIComponent(pathMatch)]);
+        }
+      } catch (storageErr) {
+        console.warn("[METRONARY Storage] Supabase Storage remove warning:", storageErr);
+      }
+    }
+
+    // Delete DB record
+    await prisma.productMedia.delete({
+      where: { id: existingMedia.id },
+    });
+
+    // If deleted media was primary, promote next remaining media
+    if (existingMedia.isPrimary) {
+      const nextMedia = await prisma.productMedia.findFirst({
+        where: { productId: product.id },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      });
+
+      if (nextMedia) {
+        await prisma.productMedia.update({
+          where: { id: nextMedia.id },
+          data: { isPrimary: true },
+        });
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            thumbnail: nextMedia.src,
+            hasAlpha: nextMedia.hasAlpha,
+          },
+        });
+      } else {
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { thumbnail: null },
+        });
+      }
+    }
+
+    revalidateAllProductPaths(product.id, product.slug);
+
+    return {
+      success: true,
+      message: "Media deleted successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Media Delete] Error deleting media ${cleanMediaId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to delete media. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action: Register Existing Local /products/ Asset
+ */
+export async function addLocalProductMediaAction(
+  productId: string,
+  _prevState: MediaActionState,
+  formData: FormData
+): Promise<MediaActionState> {
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  if (!cleanProductId) {
+    return { success: false, error: "Invalid product identifier." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      include: { media: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    // Validate path
+    const rawSrc = formData.get("src");
+    const src = typeof rawSrc === "string" ? rawSrc.trim() : "";
+    if (!src) {
+      return { success: false, error: "Asset path is required." };
+    }
+
+    // Strict local asset regex: /products/{filename}.(png|jpg|jpeg|webp)
+    const localAssetRegex = /^\/products\/[a-zA-Z0-9_\-.]+\.(png|jpg|jpeg|webp)$/i;
+    if (!localAssetRegex.test(src) || src.includes("..") || src.includes("//")) {
+      return {
+        success: false,
+        error: "Invalid asset path. Must be a valid local path format such as /products/example.png with supported image extension.",
+      };
+    }
+
+    // Parse Alt
+    const rawAlt = formData.get("alt");
+    let alt: string | null = typeof rawAlt === "string" ? rawAlt.trim() : null;
+    if (alt === "") alt = null;
+    if (alt && alt.length > 300) {
+      return { success: false, error: "Alt text must not exceed 300 characters." };
+    }
+
+    // Parse Alpha
+    const rawHasAlpha = formData.get("hasAlpha");
+    const hasAlpha = rawHasAlpha === "true" || rawHasAlpha === "on" || rawHasAlpha === "1";
+
+    // Parse Sort Order
+    const rawSortOrder = formData.get("sortOrder");
+    let sortOrder = product.media.length;
+    if (rawSortOrder !== null && rawSortOrder !== undefined && String(rawSortOrder).trim() !== "") {
+      const parsed = parseInt(String(rawSortOrder).trim(), 10);
+      if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+        sortOrder = parsed;
+      }
+    }
+
+    // Primary Decision: If first media, or explicitly requested
+    const rawIsPrimary = formData.get("isPrimary");
+    const requestedPrimary =
+      rawIsPrimary === "true" || rawIsPrimary === "on" || rawIsPrimary === "1";
+    const shouldBePrimary = product.media.length === 0 || requestedPrimary;
+
+    if (shouldBePrimary) {
+      await prisma.$transaction([
+        prisma.productMedia.updateMany({
+          where: { productId: product.id },
+          data: { isPrimary: false },
+        }),
+        prisma.productMedia.create({
+          data: {
+            productId: product.id,
+            src,
+            alt,
+            hasAlpha,
+            sortOrder,
+            isPrimary: true,
+          },
+        }),
+        prisma.product.update({
+          where: { id: product.id },
+          data: {
+            thumbnail: src,
+            hasAlpha,
+          },
+        }),
+      ]);
+    } else {
+      await prisma.productMedia.create({
+        data: {
+          productId: product.id,
+          src,
+          alt,
+          hasAlpha,
+          sortOrder,
+          isPrimary: false,
+        },
+      });
+    }
+
+    revalidateAllProductPaths(product.id, product.slug);
+
+    return {
+      success: true,
+      message: "Local asset registered successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Media Add Local] Error registering media for product ${cleanProductId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to register local asset. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action: Upload Media File via Supabase Storage
+ */
+export async function uploadProductMediaAction(
+  productId: string,
+  _prevState: MediaActionState,
+  formData: FormData
+): Promise<MediaActionState> {
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  if (!cleanProductId) {
+    return { success: false, error: "Invalid product identifier." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      include: { media: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    const rawFile = formData.get("file");
+    if (!rawFile || !(rawFile instanceof File) || rawFile.size === 0) {
+      return { success: false, error: "Please select an image file to upload." };
+    }
+
+    // Validate size (10 MB limit)
+    const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+    if (rawFile.size > MAX_SIZE_BYTES) {
+      return {
+        success: false,
+        error: "File size exceeds 10MB limit. Please upload a smaller asset.",
+      };
+    }
+
+    // Validate MIME type
+    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!ALLOWED_MIME_TYPES.includes(rawFile.type.toLowerCase())) {
+      return {
+        success: false,
+        error: "Invalid file type. Only PNG, JPG, and WEBP formats are supported.",
+      };
+    }
+
+    // Validate file extension
+    const ext = rawFile.name.split(".").pop()?.toLowerCase() || "png";
+    const ALLOWED_EXTS = ["png", "jpg", "jpeg", "webp"];
+    if (!ALLOWED_EXTS.includes(ext)) {
+      return {
+        success: false,
+        error: "Invalid file extension. Only .png, .jpg, and .webp files are allowed.",
+      };
+    }
+
+    // Parse Alt
+    const rawAlt = formData.get("alt");
+    let alt: string | null = typeof rawAlt === "string" ? rawAlt.trim() : null;
+    if (alt === "") alt = null;
+    if (alt && alt.length > 300) {
+      return { success: false, error: "Alt text must not exceed 300 characters." };
+    }
+
+    // Parse Alpha
+    const rawHasAlpha = formData.get("hasAlpha");
+    const hasAlpha = rawHasAlpha === "true" || rawHasAlpha === "on" || rawHasAlpha === "1";
+
+    // Parse Sort Order
+    const rawSortOrder = formData.get("sortOrder");
+    let sortOrder = product.media.length;
+    if (rawSortOrder !== null && rawSortOrder !== undefined && String(rawSortOrder).trim() !== "") {
+      const parsed = parseInt(String(rawSortOrder).trim(), 10);
+      if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+        sortOrder = parsed;
+      }
+    }
+
+    // Generate safe deterministic path
+    const sanitizedBase = rawFile.name
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .slice(0, 30);
+    const storagePath = `products/${product.slug || product.id}/${Date.now()}_${sanitizedBase}.${ext}`;
+
+    const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "product-media";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    if (!supabaseUrl) {
+      return {
+        success: false,
+        error: "Supabase URL is not configured in environment.",
+      };
+    }
+
+    // Upload to Supabase Storage
+    const supabase = await createClient();
+    const arrayBuffer = await rawFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(storagePath, buffer, {
+        contentType: rawFile.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[METRONARY Storage] Upload error:", uploadError);
+      return {
+        success: false,
+        error: `Supabase Storage upload failed (${uploadError.message}). Ensure bucket '${bucket}' exists and is set to Public in Supabase Dashboard, or register a local project asset.`,
+      };
+    }
+
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath}`;
+
+    // Primary Decision
+    const rawIsPrimary = formData.get("isPrimary");
+    const requestedPrimary =
+      rawIsPrimary === "true" || rawIsPrimary === "on" || rawIsPrimary === "1";
+    const shouldBePrimary = product.media.length === 0 || requestedPrimary;
+
+    if (shouldBePrimary) {
+      await prisma.$transaction([
+        prisma.productMedia.updateMany({
+          where: { productId: product.id },
+          data: { isPrimary: false },
+        }),
+        prisma.productMedia.create({
+          data: {
+            productId: product.id,
+            src: publicUrl,
+            alt,
+            hasAlpha,
+            sortOrder,
+            isPrimary: true,
+          },
+        }),
+        prisma.product.update({
+          where: { id: product.id },
+          data: {
+            thumbnail: publicUrl,
+            hasAlpha,
+          },
+        }),
+      ]);
+    } else {
+      await prisma.productMedia.create({
+        data: {
+          productId: product.id,
+          src: publicUrl,
+          alt,
+          hasAlpha,
+          sortOrder,
+          isPrimary: false,
+        },
+      });
+    }
+
+    revalidateAllProductPaths(product.id, product.slug);
+
+    return {
+      success: true,
+      message: "Media uploaded and registered successfully.",
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Media Upload] Error uploading media for product ${cleanProductId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to upload media. Please try again.",
     };
   }
 }
