@@ -33,8 +33,8 @@ export default async function AdminSizeGuidesPage() {
             <h1 className="text-xl sm:text-2xl font-bold tracking-wider uppercase text-[var(--m-cream)]">
               SIZE GUIDES
             </h1>
-            <span className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-950/40 text-amber-300 border border-amber-500/30">
-              READ-ONLY
+            <span className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-950/40 text-emerald-300 border border-emerald-500/30">
+              MANAGE GUIDES
             </span>
           </div>
           <p className="font-mono text-xs text-[rgba(245,244,238,0.5)] mt-1">
