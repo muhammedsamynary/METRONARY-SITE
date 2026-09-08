@@ -7,7 +7,8 @@ import {
   updateProductMediaAction,
   deleteProductMediaAction,
   addLocalProductMediaAction,
-  uploadProductMediaAction,
+  prepareProductMediaUploadAction,
+  finalizeProductMediaUploadAction,
   type MediaActionState,
 } from "@/app/admin/(protected)/products/[id]/actions";
 import type { AdminProductDetailMedia } from "@/lib/admin/products";
@@ -355,14 +356,105 @@ function AddMediaPanel({
     FormData
   >(localAction, { success: false });
 
-  // Upload Action Form
-  const uploadAction = uploadProductMediaAction.bind(null, productId);
-  const [uploadState, uploadFormAction, isUploadPending] = useActionState<
-    MediaActionState,
-    FormData
-  >(uploadAction, { success: false });
+  // Direct-to-Storage Upload State
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState<string>("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  // Form Field State for Direct Upload
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadAlt, setUploadAlt] = useState("");
+  const [uploadHasAlpha, setUploadHasAlpha] = useState(true);
+  const [uploadIsPrimary, setUploadIsPrimary] = useState(false);
 
   const [selectedLocalSrc, setSelectedLocalSrc] = useState<string>("/products/fearless.png");
+
+  const handleDirectUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    if (!uploadFile) {
+      setUploadError("Please select an image file to upload.");
+      return;
+    }
+
+    // 1. Client-Side Size Validation (Max 10MB)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (uploadFile.size > MAX_SIZE) {
+      setUploadError("IMAGE TOO LARGE — MAXIMUM FILE SIZE IS 10MB");
+      return;
+    }
+
+    // 2. Client-Side MIME Validation
+    const ALLOWED_MIMES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!ALLOWED_MIMES.includes(uploadFile.type.toLowerCase())) {
+      setUploadError("UNSUPPORTED IMAGE FORMAT — Only PNG, JPG, and WEBP formats are supported.");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // 3. Request Signed Upload Authorization from Server (Metadata Only)
+      setUploadProgressText("AUTHORIZING UPLOAD...");
+      const prepRes = await prepareProductMediaUploadAction(productId, {
+        filename: uploadFile.name,
+        mimeType: uploadFile.type,
+        fileSize: uploadFile.size,
+      });
+
+      if (!prepRes.success || !prepRes.signedUrl || !prepRes.storagePath) {
+        setUploadError(prepRes.error || "UPLOAD FAILED — Could not authorize storage upload.");
+        setIsUploading(false);
+        return;
+      }
+
+      // 4. Upload File Binary Directly from Browser to Supabase Storage
+      setUploadProgressText("UPLOADING TO STORAGE...");
+      const uploadRes = await fetch(prepRes.signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": uploadFile.type,
+        },
+        body: uploadFile,
+      });
+
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text().catch(() => "");
+        console.error("[METRONARY Storage Client] Direct upload failed:", uploadRes.status, errorText);
+        setUploadError("UPLOAD FAILED — Direct storage upload failed. Please try again.");
+        setIsUploading(false);
+        return;
+      }
+
+      // 5. Finalize ProductMedia Registration in Database
+      setUploadProgressText("REGISTERING MEDIA...");
+      const finRes = await finalizeProductMediaUploadAction(productId, {
+        storagePath: prepRes.storagePath,
+        alt: uploadAlt || null,
+        hasAlpha: uploadHasAlpha,
+        isPrimary: uploadIsPrimary,
+      });
+
+      if (!finRes.success) {
+        setUploadError(finRes.error || "MEDIA REGISTRATION FAILED");
+        setIsUploading(false);
+        return;
+      }
+
+      setUploadSuccess(true);
+      setUploadFile(null);
+      setUploadAlt("");
+    } catch (err: unknown) {
+      console.error("[METRONARY Storage Client] Unexpected error during upload:", err);
+      setUploadError("UPLOAD FAILED — An unexpected error occurred. Please try again.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgressText("");
+    }
+  };
 
   return (
     <div className="p-6 rounded-2xl bg-[rgba(26,26,22,0.95)] border border-[rgba(251,133,0,0.35)] shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col gap-5 animate-in fade-in slide-in-from-top-2 duration-200 font-mono text-xs">
@@ -526,10 +618,10 @@ function AddMediaPanel({
         </form>
       )}
 
-      {/* TAB 2: SUPABASE STORAGE UPLOAD */}
+      {/* TAB 2: SUPABASE STORAGE DIRECT UPLOAD */}
       {activeTab === "upload" && (
-        <form action={uploadFormAction} className="flex flex-col gap-4">
-          {uploadState.success && (
+        <form onSubmit={handleDirectUploadSubmit} className="flex flex-col gap-4">
+          {uploadSuccess && (
             <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 flex items-center justify-between">
               <span>✓ Media uploaded and attached successfully.</span>
               <button
@@ -542,9 +634,9 @@ function AddMediaPanel({
             </div>
           )}
 
-          {uploadState.error && !uploadState.success && (
+          {uploadError && !uploadSuccess && (
             <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300">
-              {uploadState.error}
+              {uploadError}
             </div>
           )}
 
@@ -554,12 +646,22 @@ function AddMediaPanel({
                 Image File (PNG, JPG, WEBP — Max 10MB) <span className="text-amber-400">*</span>
               </label>
               <input
-                name="file"
                 type="file"
                 required
                 accept="image/png, image/jpeg, image/jpg, image/webp"
+                onChange={(e) => {
+                  setUploadError(null);
+                  const file = e.target.files?.[0] || null;
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    setUploadError("IMAGE TOO LARGE — MAXIMUM FILE SIZE IS 10MB");
+                  }
+                  setUploadFile(file);
+                }}
                 className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-cream)] file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-mono file:bg-[rgba(251,133,0,0.15)] file:text-[var(--m-gold)] file:cursor-pointer hover:file:bg-[var(--m-gold)] hover:file:text-black cursor-pointer"
               />
+              <span className="text-[10px] text-[rgba(245,244,238,0.35)]">
+                Uploaded directly from browser to Supabase Storage.
+              </span>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -567,8 +669,9 @@ function AddMediaPanel({
                 Alt Description (Optional)
               </label>
               <input
-                name="alt"
                 type="text"
+                value={uploadAlt}
+                onChange={(e) => setUploadAlt(e.target.value)}
                 placeholder="e.g. Back Graphic Angle"
                 className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-cream)] focus:border-[var(--m-gold)] focus:outline-none"
               />
@@ -578,9 +681,9 @@ function AddMediaPanel({
           <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-[rgba(245,244,238,0.06)]">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
-                name="hasAlpha"
                 type="checkbox"
-                defaultChecked={true}
+                checked={uploadHasAlpha}
+                onChange={(e) => setUploadHasAlpha(e.target.checked)}
                 className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-[var(--m-gold)] focus:ring-0 cursor-pointer"
               />
               <span className="text-xs text-[var(--m-cream)]">Transparent Background (Alpha)</span>
@@ -588,9 +691,9 @@ function AddMediaPanel({
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input
-                name="isPrimary"
                 type="checkbox"
-                defaultChecked={false}
+                checked={uploadIsPrimary}
+                onChange={(e) => setUploadIsPrimary(e.target.checked)}
                 className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-[var(--m-gold)] focus:ring-0 cursor-pointer"
               />
               <span className="text-xs text-[var(--m-cream)]">Set as Primary Media</span>
@@ -600,16 +703,17 @@ function AddMediaPanel({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs uppercase text-[rgba(245,244,238,0.6)] hover:text-[var(--m-cream)]"
+                disabled={isUploading}
+                className="px-4 py-2 rounded-lg text-xs uppercase text-[rgba(245,244,238,0.6)] hover:text-[var(--m-cream)] disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isUploadPending}
+                disabled={isUploading || !uploadFile}
                 className="px-5 py-2 rounded-lg bg-[var(--m-gold)] text-black text-xs font-bold uppercase tracking-wider hover:bg-amber-400 disabled:opacity-50 transition-colors shadow-[0_0_12px_rgba(251,133,0,0.25)]"
               >
-                {isUploadPending ? "UPLOADING..." : "UPLOAD & ATTACH"}
+                {isUploading ? (uploadProgressText || "UPLOADING...") : "UPLOAD & ATTACH"}
               </button>
             </div>
           </div>

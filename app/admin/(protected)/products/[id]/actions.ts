@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getStorageAdminClient,
+  getStorageBucketName,
+  getStoragePublicUrl,
+  createSignedProductMediaUploadUrl,
+  verifyStorageObjectExists,
+  deleteStorageObject,
+} from "@/lib/supabase/storage-admin";
 import { getPrismaClient } from "@/lib/db/prisma";
 import { parseEgpToMinor, parseTagsInput } from "@/lib/admin/products";
 import { AdminAuthorizationError } from "@/lib/admin/errors";
@@ -26,6 +33,36 @@ export interface MediaActionState {
   message?: string;
   error?: string;
   fieldErrors?: Record<string, string>;
+}
+
+export interface PrepareUploadActionState {
+  success: boolean;
+  signedUrl?: string;
+  storagePath?: string;
+  token?: string;
+  publicUrl?: string;
+  error?: string;
+}
+
+export interface FinalizeUploadActionState {
+  success: boolean;
+  message?: string;
+  error?: string;
+  mediaId?: string;
+}
+
+export interface PrepareUploadParams {
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+}
+
+export interface FinalizeUploadParams {
+  storagePath: string;
+  alt?: string | null;
+  hasAlpha?: boolean;
+  isPrimary?: boolean;
+  sortOrder?: number;
 }
 
 const VALID_STOCK_STATUSES = [
@@ -947,13 +984,13 @@ export async function deleteProductMediaAction(
     }
 
     // If the image was uploaded to Supabase Storage, attempt storage object deletion
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "product-media";
+    const bucket = getStorageBucketName();
     if (existingMedia.src.includes(`/storage/v1/object/public/${bucket}/`)) {
       try {
-        const supabase = await createClient();
+        const storageClient = getStorageAdminClient();
         const pathMatch = existingMedia.src.split(`/storage/v1/object/public/${bucket}/`)[1];
         if (pathMatch) {
-          await supabase.storage.from(bucket).remove([decodeURIComponent(pathMatch)]);
+          await storageClient.storage.from(bucket).remove([decodeURIComponent(pathMatch)]);
         }
       } catch (storageErr) {
         console.warn("[METRONARY Storage] Supabase Storage remove warning:", storageErr);
@@ -1147,13 +1184,20 @@ export async function addLocalProductMediaAction(
 }
 
 /**
- * Secure Server Action: Upload Media File via Supabase Storage
+ * Secure Server Action: Prepare Direct-to-Supabase Storage Upload
+ *
+ * Flow:
+ * 1. Validates admin credentials via `requireAdmin()`.
+ * 2. Accepts lightweight metadata only (no binary File).
+ * 3. Enforces <=10MB size, whitelisted image MIME and extension.
+ * 4. Generates a collision-resistant deterministic storage path.
+ * 5. Returns a short-lived signed upload URL and path to the browser.
  */
-export async function uploadProductMediaAction(
+export async function prepareProductMediaUploadAction(
   productId: string,
-  _prevState: MediaActionState,
-  formData: FormData
-): Promise<MediaActionState> {
+  params: PrepareUploadParams
+): Promise<PrepareUploadActionState> {
+  // 1. Authoritative Authorization Check
   try {
     await requireAdmin();
   } catch (authError) {
@@ -1176,6 +1220,118 @@ export async function uploadProductMediaAction(
   try {
     const product = await prisma.product.findUnique({
       where: { id: cleanProductId },
+      select: { id: true, slug: true },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    // 2. Validate file size (Max 10MB)
+    const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+    if (!params.fileSize || typeof params.fileSize !== "number" || params.fileSize <= 0) {
+      return { success: false, error: "Invalid file size." };
+    }
+    if (params.fileSize > MAX_SIZE_BYTES) {
+      return {
+        success: false,
+        error: "IMAGE TOO LARGE — MAXIMUM FILE SIZE IS 10MB",
+      };
+    }
+
+    // 3. Validate MIME type
+    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    const mime = (params.mimeType || "").toLowerCase().trim();
+    if (!ALLOWED_MIME_TYPES.includes(mime)) {
+      return {
+        success: false,
+        error: "UNSUPPORTED IMAGE FORMAT — Only PNG, JPG, and WEBP formats are supported.",
+      };
+    }
+
+    // 4. Validate file extension
+    const ext = (params.filename || "").split(".").pop()?.toLowerCase() || "png";
+    const ALLOWED_EXTS = ["png", "jpg", "jpeg", "webp"];
+    if (!ALLOWED_EXTS.includes(ext)) {
+      return {
+        success: false,
+        error: "UNSUPPORTED FILE EXTENSION — Only .png, .jpg, and .webp files are allowed.",
+      };
+    }
+
+    // 5. Build sanitized, collision-safe storage path
+    const sanitizedBase = (params.filename || "image")
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .slice(0, 30);
+    const storagePath = `products/${product.slug || product.id}/${Date.now()}_${sanitizedBase}.${ext}`;
+
+    // 6. Generate signed upload URL
+    const { signedUrl, token } = await createSignedProductMediaUploadUrl(storagePath);
+    const publicUrl = getStoragePublicUrl(storagePath);
+
+    return {
+      success: true,
+      signedUrl,
+      storagePath,
+      token,
+      publicUrl,
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Media Prepare Upload] Error preparing upload for product ${cleanProductId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to prepare upload authorization. Please try again.",
+    };
+  }
+}
+
+/**
+ * Secure Server Action: Finalize Direct-to-Supabase Storage Upload
+ *
+ * Flow:
+ * 1. Validates admin credentials via `requireAdmin()`.
+ * 2. Confirms storage path belongs to the specified product.
+ * 3. Verifies object actually exists in the bucket.
+ * 4. Creates ProductMedia row in PostgreSQL via Prisma.
+ * 5. Synchronizes Product.thumbnail and Product.hasAlpha if primary.
+ * 6. If database operation fails, cleans up the newly uploaded storage object.
+ */
+export async function finalizeProductMediaUploadAction(
+  productId: string,
+  params: FinalizeUploadParams
+): Promise<FinalizeUploadActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  if (!cleanProductId) {
+    return { success: false, error: "Invalid product identifier." };
+  }
+
+  const cleanStoragePath = (params.storagePath || "").trim();
+  if (!cleanStoragePath) {
+    return { success: false, error: "Missing storage path." };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
       include: { media: true },
     });
 
@@ -1183,105 +1339,51 @@ export async function uploadProductMediaAction(
       return { success: false, error: "Product not found." };
     }
 
-    const rawFile = formData.get("file");
-    if (!rawFile || !(rawFile instanceof File) || rawFile.size === 0) {
-      return { success: false, error: "Please select an image file to upload." };
-    }
-
-    // Validate size (10 MB limit)
-    const MAX_SIZE_BYTES = 10 * 1024 * 1024;
-    if (rawFile.size > MAX_SIZE_BYTES) {
+    // Security Guard: Storage path must belong to this product
+    const expectedPrefix = `products/${product.slug || product.id}/`;
+    if (
+      !cleanStoragePath.startsWith(expectedPrefix) ||
+      cleanStoragePath.includes("..") ||
+      cleanStoragePath.includes("//")
+    ) {
       return {
         success: false,
-        error: "File size exceeds 10MB limit. Please upload a smaller asset.",
+        error: "Security violation: Invalid storage path for this product.",
       };
     }
 
-    // Validate MIME type
-    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-    if (!ALLOWED_MIME_TYPES.includes(rawFile.type.toLowerCase())) {
+    // Verify object exists in bucket
+    const exists = await verifyStorageObjectExists(cleanStoragePath);
+    if (!exists) {
       return {
         success: false,
-        error: "Invalid file type. Only PNG, JPG, and WEBP formats are supported.",
+        error: "UPLOAD FAILED — Object was not found in storage. Please try again.",
       };
     }
 
-    // Validate file extension
-    const ext = rawFile.name.split(".").pop()?.toLowerCase() || "png";
-    const ALLOWED_EXTS = ["png", "jpg", "jpeg", "webp"];
-    if (!ALLOWED_EXTS.includes(ext)) {
-      return {
-        success: false,
-        error: "Invalid file extension. Only .png, .jpg, and .webp files are allowed.",
-      };
-    }
-
-    // Parse Alt
-    const rawAlt = formData.get("alt");
-    let alt: string | null = typeof rawAlt === "string" ? rawAlt.trim() : null;
+    // Parse Alt Text
+    let alt: string | null = typeof params.alt === "string" ? params.alt.trim() : null;
     if (alt === "") alt = null;
     if (alt && alt.length > 300) {
       return { success: false, error: "Alt text must not exceed 300 characters." };
     }
 
     // Parse Alpha
-    const rawHasAlpha = formData.get("hasAlpha");
-    const hasAlpha = rawHasAlpha === "true" || rawHasAlpha === "on" || rawHasAlpha === "1";
+    const hasAlpha = params.hasAlpha === true;
 
     // Parse Sort Order
-    const rawSortOrder = formData.get("sortOrder");
     let sortOrder = product.media.length;
-    if (rawSortOrder !== null && rawSortOrder !== undefined && String(rawSortOrder).trim() !== "") {
-      const parsed = parseInt(String(rawSortOrder).trim(), 10);
+    if (params.sortOrder !== null && params.sortOrder !== undefined) {
+      const parsed = Number(params.sortOrder);
       if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
-        sortOrder = parsed;
+        sortOrder = Math.floor(parsed);
       }
     }
 
-    // Generate safe deterministic path
-    const sanitizedBase = rawFile.name
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .slice(0, 30);
-    const storagePath = `products/${product.slug || product.id}/${Date.now()}_${sanitizedBase}.${ext}`;
+    const publicUrl = getStoragePublicUrl(cleanStoragePath);
 
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "product-media";
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl) {
-      return {
-        success: false,
-        error: "Supabase URL is not configured in environment.",
-      };
-    }
-
-    // Upload to Supabase Storage
-    const supabase = await createClient();
-    const arrayBuffer = await rawFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(storagePath, buffer, {
-        contentType: rawFile.type,
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.error("[METRONARY Storage] Upload error:", uploadError);
-      return {
-        success: false,
-        error: `Supabase Storage upload failed (${uploadError.message}). Ensure bucket '${bucket}' exists and is set to Public in Supabase Dashboard, or register a local project asset.`,
-      };
-    }
-
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath}`;
-
-    // Primary Decision
-    const rawIsPrimary = formData.get("isPrimary");
-    const requestedPrimary =
-      rawIsPrimary === "true" || rawIsPrimary === "on" || rawIsPrimary === "1";
-    const shouldBePrimary = product.media.length === 0 || requestedPrimary;
+    // Primary decision
+    const shouldBePrimary = product.media.length === 0 || params.isPrimary === true;
 
     if (shouldBePrimary) {
       await prisma.$transaction([
@@ -1324,16 +1426,24 @@ export async function uploadProductMediaAction(
 
     return {
       success: true,
-      message: "Media uploaded and registered successfully.",
+      message: "Media uploaded and attached successfully.",
     };
   } catch (error) {
     console.error(
-      `[METRONARY Admin Media Upload] Error uploading media for product ${cleanProductId}:`,
+      `[METRONARY Media Finalize] Error finalizing upload for product ${cleanProductId}:`,
       error
     );
+
+    // Orphan Cleanup: Try to delete the uploaded storage object if DB record creation failed
+    try {
+      await deleteStorageObject(cleanStoragePath);
+    } catch (cleanupErr) {
+      console.warn("[METRONARY Storage] Orphan cleanup error:", cleanupErr);
+    }
+
     return {
       success: false,
-      error: "Unable to upload media. Please try again.",
+      error: "MEDIA REGISTRATION FAILED — Database could not record media.",
     };
   }
 }
