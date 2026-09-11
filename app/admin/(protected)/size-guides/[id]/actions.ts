@@ -506,3 +506,233 @@ export async function createSizeGuideColumnAction(
     };
   }
 }
+
+export interface CreateSizeGuideActionState {
+  success: boolean;
+  message?: string;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  guideId?: string;
+}
+
+/**
+ * Secure Server Action to Create a Completely New Size Guide
+ */
+export async function createSizeGuideAction(
+  _prevState: CreateSizeGuideActionState,
+  formData: FormData
+): Promise<CreateSizeGuideActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const fieldErrors: Record<string, string> = {};
+
+  // 2. Validate Name
+  const rawName = formData.get("name");
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) {
+    fieldErrors.name = "Size guide name is required.";
+  } else if (name.length > 100) {
+    fieldErrors.name = "Guide name must not exceed 100 characters.";
+  }
+
+  // 3. Validate Unit
+  const rawUnit = formData.get("unit");
+  const unit =
+    typeof rawUnit === "string" && rawUnit.trim() !== ""
+      ? rawUnit.trim().toUpperCase()
+      : "CM";
+  if (unit.length > 20) {
+    fieldErrors.unit = "Unit must not exceed 20 characters.";
+  }
+
+  // 4. Validate Notes
+  const rawNotes = formData.get("notes");
+  const notes = typeof rawNotes === "string" ? rawNotes.trim() : "";
+  if (notes.length > 1000) {
+    fieldErrors.notes = "Notes must not exceed 1,000 characters.";
+  }
+
+  // 5. Check Duplicate Name
+  if (name) {
+    const existing = await prisma.sizeGuide.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      fieldErrors.name = `A size guide with the name "${name}" already exists.`;
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      success: false,
+      error: "Please correct the form errors before creating the size guide.",
+      fieldErrors,
+    };
+  }
+
+  try {
+    // 6. Generate Clean Collision-Resistant Identifier
+    const baseSlug =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 30) || "guide";
+    const uniqueSuffix = Date.now().toString(36);
+    const guideId = `guide-${baseSlug}-${uniqueSuffix}`;
+
+    // 7. Create SizeGuide Entity (empty matrix, no automatic assignments)
+    const newGuide = await prisma.sizeGuide.create({
+      data: {
+        id: guideId,
+        name,
+        unit,
+        notes: notes || null,
+      },
+    });
+
+    // 8. Revalidate Relevant Routes
+    revalidatePath("/admin");
+    revalidatePath("/admin/size-guides");
+    revalidatePath("/admin/products");
+
+    return {
+      success: true,
+      message: `Size guide "${name}" created successfully.`,
+      guideId: newGuide.id,
+    };
+  } catch (error) {
+    console.error("[METRONARY Admin Create Size Guide] Error:", error);
+    return {
+      success: false,
+      error: "Unable to create size guide. Please try again.",
+    };
+  }
+}
+
+export interface DeleteSizeGuideActionState {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Secure Server Action to Safely Delete an Unassigned Size Guide
+ */
+export async function deleteSizeGuideAction(
+  guideId: string
+): Promise<DeleteSizeGuideActionState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanGuideId = guideId ? guideId.trim() : "";
+  if (!cleanGuideId) {
+    return { success: false, error: "Invalid size guide identifier." };
+  }
+
+  try {
+    // 2. Fetch Size Guide and Check Product Assignments
+    const guide = await prisma.sizeGuide.findUnique({
+      where: { id: cleanGuideId },
+      include: {
+        products: {
+          select: { id: true, workingName: true, officialName: true },
+        },
+      },
+    });
+
+    if (!guide) {
+      return { success: false, error: "Size guide not found." };
+    }
+
+    // 3. Prevent Deletion if Guide is Attached to Any Products
+    if (guide.products.length > 0) {
+      const productNames = guide.products
+        .map((p) => p.officialName?.trim() || p.workingName)
+        .join(", ");
+      return {
+        success: false,
+        error: `SIZE GUIDE IS ASSIGNED TO ${guide.products.length} PRODUCT${guide.products.length === 1 ? "" : "S"} (${productNames}) — REMOVE ASSIGNMENTS FIRST.`,
+      };
+    }
+
+    // 4. Atomic Transactional Deletion
+    await prisma.$transaction(async (tx) => {
+      // Delete cells
+      await tx.sizeGuideCell.deleteMany({
+        where: {
+          row: {
+            guideId: guide.id,
+          },
+        },
+      });
+
+      // Delete rows
+      await tx.sizeGuideRow.deleteMany({
+        where: { guideId: guide.id },
+      });
+
+      // Delete columns
+      await tx.sizeGuideColumn.deleteMany({
+        where: { guideId: guide.id },
+      });
+
+      // Delete guide entity
+      await tx.sizeGuide.delete({
+        where: { id: guide.id },
+      });
+    });
+
+    // 5. Revalidate Routes
+    revalidatePath("/admin");
+    revalidatePath("/admin/size-guides");
+    revalidatePath(`/admin/size-guides/${guide.id}`);
+    revalidatePath("/admin/products");
+
+    return {
+      success: true,
+      message: `Size guide "${guide.name}" deleted successfully.`,
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Delete Size Guide] Error deleting guide ${cleanGuideId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to delete size guide. Please try again.",
+    };
+  }
+}

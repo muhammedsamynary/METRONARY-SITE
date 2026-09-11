@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   updateSizeGuideAction,
   createSizeGuideRowAction,
   createSizeGuideColumnAction,
+  deleteSizeGuideAction,
   type SizeGuideActionState,
 } from "@/app/admin/(protected)/size-guides/[id]/actions";
 import type { AdminSizeGuideDetailResult } from "@/lib/admin/size-guides";
@@ -54,6 +56,25 @@ export function SizeGuideEditor({ guide }: SizeGuideEditorProps) {
   // Local state for toggling Add Size / Add Column drawers
   const [showAddRowDrawer, setShowAddRowDrawer] = useState(false);
   const [showAddColDrawer, setShowAddColDrawer] = useState(false);
+
+  // Safe Delete state & handler
+  const router = useRouter();
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = () => {
+    setDeleteError(null);
+    startDeleteTransition(async () => {
+      const res = await deleteSizeGuideAction(guide.id);
+      if (res.success) {
+        router.push("/admin/size-guides");
+      } else {
+        setDeleteError(res.error || "Failed to delete size guide.");
+        setDeleteConfirmOpen(false);
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl pb-24">
@@ -458,6 +479,85 @@ export function SizeGuideEditor({ guide }: SizeGuideEditorProps) {
                   <p>Last Updated: {formatDate(guide.updatedAt)}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Danger Zone: Delete Size Guide */}
+            <div className="p-6 rounded-xl bg-[rgba(30,15,15,0.7)] border border-red-500/30 flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3 border-b border-red-500/20">
+                <h2 className="text-xs font-mono font-bold tracking-[0.2em] uppercase text-red-400">
+                  DANGER ZONE
+                </h2>
+                <span className="text-[10px] font-mono text-red-500/70 uppercase">
+                  DESTRUCTIVE
+                </span>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 rounded-lg bg-red-950/60 border border-red-500/40 text-red-300 text-xs font-mono">
+                  {deleteError}
+                </div>
+              )}
+
+              {guide.assignedProducts.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  <div className="p-3.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-mono leading-relaxed">
+                    <span className="font-bold block mb-1">
+                      SIZE GUIDE IS ASSIGNED TO {guide.assignedProducts.length} PRODUCT{guide.assignedProducts.length === 1 ? "" : "S"} — REMOVE ASSIGNMENTS FIRST
+                    </span>
+                    <span className="text-[11px] text-amber-200/70">
+                      To prevent catalog corruption, you must unassign this guide from all products before it can be deleted.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-mono font-bold uppercase tracking-wider bg-red-950/30 text-red-400/40 border border-red-900/30 cursor-not-allowed text-center"
+                  >
+                    DELETE SIZE GUIDE (LOCKED)
+                  </button>
+                </div>
+              ) : !deleteConfirmOpen ? (
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs font-mono text-[rgba(245,244,238,0.6)] leading-relaxed">
+                    Permanently delete this size guide and its configured columns, rows, and measurements. This action cannot be undone.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    disabled={isDeleting}
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-mono font-bold uppercase tracking-wider bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/40 hover:border-red-400 transition-all text-center"
+                  >
+                    DELETE SIZE GUIDE
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 p-4 rounded-lg bg-black/60 border border-red-500/40 animate-in fade-in duration-150">
+                  <p className="text-xs font-mono font-bold text-red-300 uppercase tracking-wide">
+                    Confirm Permanent Deletion?
+                  </p>
+                  <p className="text-[11px] font-mono text-[rgba(245,244,238,0.7)] leading-relaxed">
+                    Are you sure you want to delete <strong className="text-[var(--m-cream)]">{guide.name}</strong>? All {guide.stats.rowCount} sizes and {guide.stats.columnCount} columns will be permanently removed.
+                  </p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      disabled={isDeleting}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase text-[rgba(245,244,238,0.6)] hover:text-[var(--m-cream)] bg-[rgba(255,255,255,0.05)] border border-[rgba(245,244,238,0.1)] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-mono font-bold uppercase tracking-wider bg-red-600 hover:bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.4)] disabled:opacity-50 transition-all"
+                    >
+                      {isDeleting ? "DELETING..." : "YES, DELETE"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

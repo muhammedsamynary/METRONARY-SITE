@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminSizeGuides } from "@/lib/admin/size-guides";
+import { CreateSizeGuideModal } from "@/components/admin/CreateSizeGuideModal";
 
 export const metadata: Metadata = {
   title: "Size Guides — METRONARY Admin",
@@ -41,6 +42,8 @@ export default async function AdminSizeGuidesPage() {
             Manage reusable product measurement guides.
           </p>
         </div>
+
+        <CreateSizeGuideModal />
       </div>
 
       {/* Stats Ribbon */}
