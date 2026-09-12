@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MetronaryBackground } from "@/components/background/MetronaryBackground";
 import { PRESET_DEFAULT, getProductHoverTheme } from "@/lib/theme/gradient.presets";
-import { ProductField, HomeBrandStatement } from "@/components/home";
+import { ProductField } from "@/components/home";
 
 export default function HomePage() {
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null);
@@ -21,9 +21,6 @@ export default function HomePage() {
         aria-label="Metronary Storefront"
       >
         <ProductField onHoverProduct={setHoveredSlug} />
-
-        {/* Quiet Editorial Brand Anchor (Lower Left Margin of Initial Viewport) */}
-        <HomeBrandStatement />
       </main>
     </MetronaryBackground>
   );

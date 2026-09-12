@@ -6,10 +6,14 @@ import { CartTrigger } from "@/components/cart/CartTrigger";
 export function Header() {
   return (
     <header
-      className="fixed top-0 left-0 right-0 bg-transparent pointer-events-none"
-      style={{ zIndex: "var(--m-z-header)" }}
+      className="fixed top-0 left-0 right-0 w-full bg-[rgba(10,8,5,0.38)] backdrop-blur-xl border-b border-white/[0.06] transition-colors duration-300"
+      style={{
+        zIndex: "var(--m-z-header)",
+        WebkitBackdropFilter: "blur(20px)",
+        backdropFilter: "blur(20px)",
+      }}
     >
-      <div className="max-w-[var(--m-content-max)] mx-auto px-5 py-4 sm:px-8 sm:py-5 flex items-center justify-between pointer-events-auto">
+      <div className="max-w-[var(--m-content-max)] mx-auto px-5 py-4 sm:px-8 sm:py-5 flex items-center justify-between">
         {/* Primary Blaze Metro Mark + Wordmark */}
         <Link
           href={ROUTES.home}
