@@ -106,6 +106,12 @@ export function CheckoutSummary({
                 </span>
 
                 <div className="flex items-center gap-2 text-[10px] font-mono text-[rgba(245,244,238,0.55)]">
+                  {item.color && (
+                    <>
+                      <span>COLOR: <strong className="text-[var(--m-cream)]">{item.color}</strong></span>
+                      <span>•</span>
+                    </>
+                  )}
                   <span>SIZE: <strong className="text-[var(--m-cream)]">{item.size}</strong></span>
                   <span>•</span>
                   <span>QTY: <strong className="text-[var(--m-cream)]">{item.quantity}</strong></span>

@@ -19,7 +19,7 @@ export function MiniCartItem({
   onRemove,
   onItemClick,
 }: MiniCartItemProps) {
-  const { id, slug, displayName, thumbnail, size, quantity, unitPrice, currency } = item;
+  const { id, slug, displayName, thumbnail, size, color, quantity, unitPrice, currency } = item;
   const formattedPrice = formatCurrency(unitPrice ? unitPrice * quantity : null, currency);
 
   return (
@@ -50,7 +50,11 @@ export function MiniCartItem({
         </Link>
 
         <div className="flex items-center gap-2 text-[10px] font-mono text-[rgba(245,244,238,0.6)]">
-          <span>SIZE: {size}</span>
+          {color ? (
+            <span>COLOR: {color} • SIZE: {size}</span>
+          ) : (
+            <span>SIZE: {size}</span>
+          )}
           {formattedPrice && (
             <>
               <span>•</span>

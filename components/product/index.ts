@@ -2,6 +2,8 @@ export * from "./ProductGallery";
 export * from "./ProductInfoPanel";
 export * from "./ProductActions";
 export * from "./ProductSizeSelector";
+export * from "./ProductColorSelector";
+export * from "./ProductShowcase";
 export * from "./ProductAvailability";
 export * from "./ProductBackLink";
 export * from "./SizeGuideTrigger";

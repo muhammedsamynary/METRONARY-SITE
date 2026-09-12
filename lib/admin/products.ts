@@ -54,6 +54,7 @@ export interface AdminProductCatalogResult {
 export interface AdminProductDetailVariant {
   id: string;
   size: string | null;
+  color: string | null;
   sku: string | null;
   stockStatus: string;
   stockQuantity: number | null;
@@ -65,6 +66,7 @@ export interface AdminProductDetailMedia {
   id: string;
   src: string;
   alt: string | null;
+  color: string | null;
   sortOrder: number;
   isPrimary: boolean;
   hasAlpha: boolean;
@@ -288,6 +290,7 @@ export async function getAdminProductById(
         id: m.id,
         src: m.src,
         alt: m.alt,
+        color: m.color,
         sortOrder: m.sortOrder,
         isPrimary: m.isPrimary,
         hasAlpha: m.hasAlpha,
@@ -296,6 +299,7 @@ export async function getAdminProductById(
       variants: p.variants.map((v) => ({
         id: v.id,
         size: v.size,
+        color: v.color,
         sku: v.sku,
         stockStatus: v.stockStatus,
         stockQuantity: v.stockQuantity,

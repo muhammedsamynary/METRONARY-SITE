@@ -60,6 +60,7 @@ export interface PrepareUploadParams {
 export interface FinalizeUploadParams {
   storagePath: string;
   alt?: string | null;
+  color?: string | null;
   hasAlpha?: boolean;
   isPrimary?: boolean;
   sortOrder?: number;
@@ -430,28 +431,42 @@ export async function updateVariantAction(
       fieldErrors.size = "Size must not exceed 50 characters.";
     }
 
+    // Color (Optional)
+    const rawColor = formData.get("color");
+    let color: string | null = typeof rawColor === "string" ? rawColor.trim() : null;
+    if (color === "") color = null;
+    if (color && color.length > 50) {
+      fieldErrors.color = "Color must not exceed 50 characters.";
+    }
+
     // Active
     const rawActive = formData.get("active");
     const active = rawActive === "true" || rawActive === "on" || rawActive === "1";
 
-    // Duplicate Active Size Protection
+    // Duplicate Active Size+Color Protection
     if (size && active) {
       const otherVariants = await prisma.productVariant.findMany({
         where: {
           productId: product.id,
           id: { not: variant.id },
         },
-        select: { size: true, active: true },
+        select: { size: true, color: true, active: true },
       });
 
-      const duplicate = otherVariants.some(
-        (v) =>
-          v.active &&
-          v.size?.trim().toLowerCase() === size.trim().toLowerCase()
-      );
+      const normSize = size.toLowerCase();
+      const normColor = (color || "").toLowerCase();
+
+      const duplicate = otherVariants.some((v) => {
+        if (!v.active) return false;
+        const vNormSize = (v.size || "").trim().toLowerCase();
+        const vNormColor = (v.color || "").trim().toLowerCase();
+        return vNormSize === normSize && vNormColor === normColor;
+      });
 
       if (duplicate) {
-        fieldErrors.size = `An active variant with size "${size}" already exists.`;
+        fieldErrors.size = `An active variant with size "${size}"${
+          color ? ` and color "${color}"` : ""
+        } already exists.`;
       }
     }
 
@@ -507,6 +522,7 @@ export async function updateVariantAction(
       where: { id: variant.id },
       data: {
         size,
+        color,
         sku: sku || null,
         stockStatus,
         stockQuantity,
@@ -615,6 +631,14 @@ export async function createVariantAction(
       fieldErrors.size = "Size must not exceed 50 characters.";
     }
 
+    // Color (Optional)
+    const rawColor = formData.get("color");
+    let color: string | null = typeof rawColor === "string" ? rawColor.trim() : null;
+    if (color === "") color = null;
+    if (color && color.length > 50) {
+      fieldErrors.color = "Color must not exceed 50 characters.";
+    }
+
     // Active (Default true)
     const rawActive = formData.get("active");
     const active =
@@ -622,21 +646,27 @@ export async function createVariantAction(
         ? true
         : rawActive === "true" || rawActive === "on" || rawActive === "1";
 
-    // Duplicate Active Size Protection
+    // Duplicate Active Size+Color Protection
     if (size && active) {
       const existingVariants = await prisma.productVariant.findMany({
         where: { productId: product.id },
-        select: { size: true, active: true },
+        select: { size: true, color: true, active: true },
       });
 
-      const duplicate = existingVariants.some(
-        (v) =>
-          v.active &&
-          v.size?.trim().toLowerCase() === size.trim().toLowerCase()
-      );
+      const normSize = size.toLowerCase();
+      const normColor = (color || "").toLowerCase();
+
+      const duplicate = existingVariants.some((v) => {
+        if (!v.active) return false;
+        const vNormSize = (v.size || "").trim().toLowerCase();
+        const vNormColor = (v.color || "").trim().toLowerCase();
+        return vNormSize === normSize && vNormColor === normColor;
+      });
 
       if (duplicate) {
-        fieldErrors.size = `An active variant with size "${size}" already exists.`;
+        fieldErrors.size = `An active variant with size "${size}"${
+          color ? ` and color "${color}"` : ""
+        } already exists.`;
       }
     }
 
@@ -691,6 +721,7 @@ export async function createVariantAction(
       data: {
         productId: product.id,
         size,
+        color,
         sku: sku || null,
         stockStatus,
         stockQuantity,
@@ -720,6 +751,259 @@ export async function createVariantAction(
     return {
       success: false,
       error: "Unable to create variant. Please try again.",
+    };
+  }
+}
+
+/**
+ * Types for Bulk Color Set Creation
+ */
+export interface BulkColorVariantsParams {
+  colors: string[];
+  sizes: string[];
+  stockStatus?: "UNKNOWN" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "UNAVAILABLE";
+  stockQuantity?: number | null;
+  active?: boolean;
+  skuPrefix?: string | null;
+  applyToExistingNullColorVariants?: boolean;
+}
+
+export interface BulkColorVariantsState {
+  success: boolean;
+  message?: string;
+  error?: string;
+  createdCount?: number;
+  updatedCount?: number;
+  skippedCount?: number;
+}
+
+/**
+ * Secure Server Action for Bulk Creating Color Variants
+ *
+ * Rules:
+ * - Enforces `requireAdmin()`.
+ * - Multi-color × multi-size matrix creation in a single atomic Prisma transaction.
+ * - Duplicate safe: skips existing (size + color) combinations without failing.
+ * - Optional first-color conversion mode for legacy null-color variants.
+ * - Applies unified stock status, stock quantity, and active defaults.
+ * - Revalidates all admin and storefront catalog paths.
+ */
+export async function bulkCreateColorVariantsAction(
+  productId: string,
+  params: BulkColorVariantsParams
+): Promise<BulkColorVariantsState> {
+  // 1. Authoritative Authorization Check
+  try {
+    await requireAdmin();
+  } catch (authError) {
+    if (authError instanceof AdminAuthorizationError) {
+      return { success: false, error: authError.message };
+    }
+    return { success: false, error: "Unauthorized: Administrator privileges required." };
+  }
+
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return { success: false, error: "Database service unavailable. Please try again later." };
+  }
+
+  const cleanProductId = productId ? productId.trim() : "";
+  if (!cleanProductId) {
+    return { success: false, error: "Invalid product identifier." };
+  }
+
+  // 2. Validate and Normalize Inputs
+  const rawColors = Array.isArray(params.colors) ? params.colors : [];
+  const rawSizes = Array.isArray(params.sizes) ? params.sizes : [];
+
+  const colors = Array.from(
+    new Set(
+      rawColors
+        .map((c) => (typeof c === "string" ? c.trim() : ""))
+        .filter((c) => c.length > 0)
+    )
+  );
+
+  const sizes = Array.from(
+    new Set(
+      rawSizes
+        .map((s) => (typeof s === "string" ? s.trim() : ""))
+        .filter((s) => s.length > 0)
+    )
+  );
+
+  if (colors.length === 0) {
+    return { success: false, error: "At least one valid color is required." };
+  }
+
+  if (sizes.length === 0) {
+    return { success: false, error: "At least one valid size is required." };
+  }
+
+  for (const c of colors) {
+    if (c.length > 50) {
+      return { success: false, error: `Color name "${c}" exceeds 50 characters.` };
+    }
+  }
+
+  for (const s of sizes) {
+    if (s.length > 20) {
+      return { success: false, error: `Size name "${s}" exceeds 20 characters.` };
+    }
+  }
+
+  const stockStatus: ValidStockStatus =
+    params.stockStatus && VALID_STOCK_STATUSES.includes(params.stockStatus as ValidStockStatus)
+      ? (params.stockStatus as ValidStockStatus)
+      : "IN_STOCK";
+
+  let stockQuantity: number | null = null;
+  if (params.stockQuantity !== undefined && params.stockQuantity !== null) {
+    const qty = Number(params.stockQuantity);
+    if (!Number.isNaN(qty) && Number.isInteger(qty) && qty >= 0) {
+      stockQuantity = qty;
+    }
+  }
+
+  const active = params.active !== false;
+  const skuPrefix = params.skuPrefix ? params.skuPrefix.trim() : "";
+  const applyToExisting = Boolean(params.applyToExistingNullColorVariants);
+
+  try {
+    // 3. Fetch Product & Existing Variants
+    const product = await prisma.product.findUnique({
+      where: { id: cleanProductId },
+      include: {
+        variants: {
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+
+    if (!product) {
+      return { success: false, error: "Product not found." };
+    }
+
+    // 4. Atomic Matrix Generation Transaction
+    const result = await prisma.$transaction(async (tx) => {
+      let createdCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      let nextSortOrder =
+        product.variants.length > 0
+          ? Math.max(...product.variants.map((v) => v.sortOrder)) + 1
+          : 0;
+
+      // Filter available null-color variants for the first color conversion mode
+      const availableNullVariants = product.variants.filter(
+        (v) => !v.color || !v.color.trim()
+      );
+
+      for (let cIdx = 0; cIdx < colors.length; cIdx++) {
+        const color = colors[cIdx];
+        const normColor = color.trim().toLowerCase();
+
+        for (const size of sizes) {
+          const normSize = size.trim().toLowerCase();
+
+          // Check if variant with same size & color already exists
+          const exists = product.variants.some((v) => {
+            const vNormSize = (v.size || "").trim().toLowerCase();
+            const vNormColor = (v.color || "").trim().toLowerCase();
+            return vNormSize === normSize && vNormColor === normColor;
+          });
+
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+
+          // If applyToExisting is active and this is the first color in batch:
+          // Check if there is an existing null-color variant for this size
+          if (applyToExisting && cIdx === 0) {
+            const nullVarIdx = availableNullVariants.findIndex(
+              (v) => (v.size || "").trim().toLowerCase() === normSize
+            );
+
+            if (nullVarIdx > -1) {
+              const targetNullVar = availableNullVariants[nullVarIdx];
+              // Remove so it won't be reused in this loop
+              availableNullVariants.splice(nullVarIdx, 1);
+
+              const skuVal = skuPrefix
+                ? `${skuPrefix.toUpperCase()}-${color.toUpperCase()}-${size.toUpperCase()}`
+                : targetNullVar.sku;
+
+              await tx.productVariant.update({
+                where: { id: targetNullVar.id },
+                data: {
+                  color: color.trim(),
+                  stockStatus,
+                  stockQuantity:
+                    stockQuantity !== null ? stockQuantity : targetNullVar.stockQuantity,
+                  active,
+                  sku: skuVal,
+                },
+              });
+
+              updatedCount++;
+              continue;
+            }
+          }
+
+          // Create new variant
+          const skuVal = skuPrefix
+            ? `${skuPrefix.toUpperCase()}-${color.toUpperCase()}-${size.toUpperCase()}`
+            : null;
+
+          await tx.productVariant.create({
+            data: {
+              productId: product.id,
+              size: size.trim(),
+              color: color.trim(),
+              sku: skuVal,
+              stockStatus,
+              stockQuantity,
+              active,
+              sortOrder: nextSortOrder++,
+            },
+          });
+
+          createdCount++;
+        }
+      }
+
+      return { createdCount, updatedCount, skippedCount };
+    });
+
+    // 5. Revalidate Routes
+    revalidateAllProductPaths(product.id, product.slug);
+
+    let summary = `Bulk operation complete: ${result.createdCount} variant(s) created`;
+    if (result.updatedCount > 0) {
+      summary += `, ${result.updatedCount} converted from legacy variants`;
+    }
+    if (result.skippedCount > 0) {
+      summary += `, ${result.skippedCount} already existed (skipped)`;
+    }
+    summary += ".";
+
+    return {
+      success: true,
+      message: summary,
+      createdCount: result.createdCount,
+      updatedCount: result.updatedCount,
+      skippedCount: result.skippedCount,
+    };
+  } catch (error) {
+    console.error(
+      `[METRONARY Admin Bulk Variant Create] Error for product ${cleanProductId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: "Unable to complete bulk color variant creation. Please try again.",
     };
   }
 }
@@ -888,6 +1172,17 @@ export async function updateProductMediaAction(
       };
     }
 
+    // Parse Color (Optional)
+    const rawColor = formData.get("color");
+    let color: string | null = typeof rawColor === "string" ? rawColor.trim() : null;
+    if (color === "") color = null;
+    if (color && color.length > 50) {
+      return {
+        success: false,
+        error: "Color tag must not exceed 50 characters.",
+      };
+    }
+
     // Parse Sort Order
     const rawSortOrder = formData.get("sortOrder");
     let sortOrder = existingMedia.sortOrder;
@@ -906,6 +1201,7 @@ export async function updateProductMediaAction(
       where: { id: existingMedia.id },
       data: {
         alt,
+        color,
         sortOrder,
         hasAlpha,
       },
@@ -1108,6 +1404,14 @@ export async function addLocalProductMediaAction(
       return { success: false, error: "Alt text must not exceed 300 characters." };
     }
 
+    // Parse Color (Optional)
+    const rawColor = formData.get("color");
+    let color: string | null = typeof rawColor === "string" ? rawColor.trim() : null;
+    if (color === "") color = null;
+    if (color && color.length > 50) {
+      return { success: false, error: "Color tag must not exceed 50 characters." };
+    }
+
     // Parse Alpha
     const rawHasAlpha = formData.get("hasAlpha");
     const hasAlpha = rawHasAlpha === "true" || rawHasAlpha === "on" || rawHasAlpha === "1";
@@ -1139,6 +1443,7 @@ export async function addLocalProductMediaAction(
             productId: product.id,
             src,
             alt,
+            color,
             hasAlpha,
             sortOrder,
             isPrimary: true,
@@ -1158,6 +1463,7 @@ export async function addLocalProductMediaAction(
           productId: product.id,
           src,
           alt,
+          color,
           hasAlpha,
           sortOrder,
           isPrimary: false,
@@ -1368,6 +1674,13 @@ export async function finalizeProductMediaUploadAction(
       return { success: false, error: "Alt text must not exceed 300 characters." };
     }
 
+    // Parse Color (Optional)
+    let color: string | null = typeof params.color === "string" ? params.color.trim() : null;
+    if (color === "") color = null;
+    if (color && color.length > 50) {
+      return { success: false, error: "Color tag must not exceed 50 characters." };
+    }
+
     // Parse Alpha
     const hasAlpha = params.hasAlpha === true;
 
@@ -1396,6 +1709,7 @@ export async function finalizeProductMediaUploadAction(
             productId: product.id,
             src: publicUrl,
             alt,
+            color,
             hasAlpha,
             sortOrder,
             isPrimary: true,
@@ -1415,6 +1729,7 @@ export async function finalizeProductMediaUploadAction(
           productId: product.id,
           src: publicUrl,
           alt,
+          color,
           hasAlpha,
           sortOrder,
           isPrimary: false,

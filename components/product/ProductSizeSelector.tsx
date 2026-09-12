@@ -5,25 +5,108 @@ import type { ProductVariant, SizeGuide } from "@/lib/products/types";
 import { SizeGuideTrigger } from "./SizeGuideTrigger";
 import { SizeGuideModal } from "./SizeGuideModal";
 
+export interface SizeOption {
+  size: string;
+  disabled?: boolean;
+}
+
 interface ProductSizeSelectorProps {
   variants?: ProductVariant[];
+  sizeOptions?: SizeOption[];
   sizeGuide?: SizeGuide | null;
-  selectedVariantId: string | null;
-  onSelectVariant: (variant: ProductVariant) => void;
+  selectedSize?: string | null;
+  selectedVariantId?: string | null;
+  onSelectSize?: (size: string) => void;
+  onSelectVariant?: (variant: ProductVariant) => void;
   className?: string;
 }
 
 export function ProductSizeSelector({
   variants,
+  sizeOptions,
   sizeGuide,
+  selectedSize,
   selectedVariantId,
+  onSelectSize,
   onSelectVariant,
   className = "",
 }: ProductSizeSelectorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // If no variants exist for this product, omit size buttons cleanly
+  // If sizeOptions are provided (2D multi-color/size selector mode)
+  if (sizeOptions && sizeOptions.length > 0) {
+    return (
+      <div className={`flex flex-col gap-2.5 ${className}`}>
+        {/* ── Size Header with integrated Size Guide Trigger ── */}
+        <div className="flex items-center justify-between text-[11px] tracking-[0.2em] uppercase text-[rgba(245,244,238,0.7)] font-medium">
+          <span>Select Size</span>
+          {selectedSize && (
+            <span className="text-[var(--m-gold)] font-mono text-[10px] tracking-wider">
+              {selectedSize}
+            </span>
+          )}
+
+          {/* Dynamic Size Guide Trigger (Only renders if sizeGuide is assigned) */}
+          {sizeGuide && (
+            <SizeGuideTrigger
+              guide={sizeGuide}
+              onOpen={() => setIsModalOpen(true)}
+              triggerRef={triggerRef}
+            />
+          )}
+        </div>
+
+        {/* ── Size Selection Buttons ── */}
+        <div
+          className="flex flex-wrap items-center gap-2.5"
+          role="radiogroup"
+          aria-label="Select product size"
+        >
+          {sizeOptions.map(({ size, disabled }) => {
+            const isSelected = selectedSize === size;
+
+            return (
+              <button
+                key={size}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                disabled={disabled}
+                aria-disabled={disabled}
+                onClick={() => {
+                  if (!disabled && onSelectSize) {
+                    onSelectSize(size);
+                  }
+                }}
+                className={`min-w-[44px] h-11 px-3.5 rounded-lg border text-[12px] font-mono font-medium flex items-center justify-center transition-all duration-200 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
+                  isSelected
+                    ? "border-[var(--m-gold)] bg-[rgba(251,133,0,0.18)] text-[var(--m-cream)] shadow-[0_0_14px_rgba(251,133,0,0.45)] scale-105"
+                    : disabled
+                    ? "border-[rgba(245,244,238,0.08)] bg-[rgba(245,244,238,0.02)] text-[rgba(245,244,238,0.25)] cursor-not-allowed line-through"
+                    : "border-[rgba(245,244,238,0.15)] bg-[rgba(245,244,238,0.04)] text-[rgba(245,244,238,0.85)] hover:border-[var(--m-gold)] hover:text-[var(--m-cream)] hover:bg-[rgba(251,133,0,0.06)] cursor-pointer"
+                }`}
+              >
+                {size}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Dynamic Size Guide Modal Dialog ── */}
+        {sizeGuide && (
+          <SizeGuideModal
+            guide={sizeGuide}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            triggerRef={triggerRef}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: Legacy Single-Dimension Variant Mode (when variants array passed)
   if (!variants || variants.length === 0) {
     return null;
   }
@@ -65,7 +148,7 @@ export function ProductSizeSelector({
               aria-checked={isSelected}
               disabled={isDisabled}
               aria-disabled={isDisabled}
-              onClick={() => onSelectVariant(variant)}
+              onClick={() => onSelectVariant?.(variant)}
               className={`min-w-[44px] h-11 px-3.5 rounded-lg border text-[12px] font-mono font-medium flex items-center justify-center transition-all duration-200 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
                 isSelected
                   ? "border-[var(--m-gold)] bg-[rgba(251,133,0,0.18)] text-[var(--m-cream)] shadow-[0_0_14px_rgba(251,133,0,0.45)] scale-105"

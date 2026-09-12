@@ -20,6 +20,8 @@ export interface CartItem {
   variantId: string;
   /** Selected size label (e.g. S, M, L) */
   size: string;
+  /** Selected color label (e.g. BLACK, WHITE) */
+  color?: string | null;
   /** Quantity in bag */
   quantity: number;
   /** Unit price in commercial currency (null when unconfirmed) */
@@ -44,6 +46,7 @@ export interface AddItemInput {
   thumbnail: string;
   variantId: string;
   size: string;
+  color?: string | null;
   quantity?: number;
   unitPrice?: number | null;
   currency?: string;

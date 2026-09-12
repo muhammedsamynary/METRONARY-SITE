@@ -125,6 +125,20 @@ function EditMediaModal({
             />
           </div>
 
+          {/* Color Tag */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
+              Color Tag (Optional — leave blank for Universal Media)
+            </label>
+            <input
+              name="color"
+              type="text"
+              defaultValue={mediaItem.color || ""}
+              placeholder="e.g. BLACK, WHITE (blank = Universal)"
+              className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-gold)] focus:border-[var(--m-gold)] focus:outline-none"
+            />
+          </div>
+
           {/* Sort Order */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
@@ -243,6 +257,16 @@ function MediaCard({
             </span>
           )}
 
+          {mediaItem.color ? (
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-amber-950/70 text-[var(--m-gold)] border border-amber-500/40 font-bold">
+              {mediaItem.color}
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-[rgba(255,255,255,0.06)] text-[rgba(245,244,238,0.4)] border border-[rgba(245,244,238,0.08)]">
+              UNIVERSAL
+            </span>
+          )}
+
           {mediaItem.hasAlpha && (
             <span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-sky-950/60 text-sky-300 border border-sky-500/30">
               ALPHA
@@ -261,6 +285,14 @@ function MediaCard({
             title={mediaItem.src}
           >
             {mediaItem.src}
+          </span>
+        </div>
+
+        {/* Color Tag */}
+        <div className="flex flex-col">
+          <span className="text-[9px] text-[rgba(245,244,238,0.4)] uppercase">COLOR TAG</span>
+          <span className="text-[11px] text-[var(--m-gold)] truncate">
+            {mediaItem.color ? mediaItem.color : "Universal (All Colors)"}
           </span>
         </div>
 
@@ -365,6 +397,7 @@ function AddMediaPanel({
   // Form Field State for Direct Upload
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadAlt, setUploadAlt] = useState("");
+  const [uploadColor, setUploadColor] = useState("");
   const [uploadHasAlpha, setUploadHasAlpha] = useState(true);
   const [uploadIsPrimary, setUploadIsPrimary] = useState(false);
 
@@ -434,6 +467,7 @@ function AddMediaPanel({
       const finRes = await finalizeProductMediaUploadAction(productId, {
         storagePath: prepRes.storagePath,
         alt: uploadAlt || null,
+        color: uploadColor.trim() || null,
         hasAlpha: uploadHasAlpha,
         isPrimary: uploadIsPrimary,
       });
@@ -447,6 +481,7 @@ function AddMediaPanel({
       setUploadSuccess(true);
       setUploadFile(null);
       setUploadAlt("");
+      setUploadColor("");
     } catch (err: unknown) {
       console.error("[METRONARY Storage Client] Unexpected error during upload:", err);
       setUploadError("UPLOAD FAILED — An unexpected error occurred. Please try again.");
@@ -522,7 +557,7 @@ function AddMediaPanel({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
                 Asset Path <span className="text-amber-400">*</span>
@@ -550,6 +585,18 @@ function AddMediaPanel({
                 type="text"
                 placeholder="e.g. Front View"
                 className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-cream)] focus:border-[var(--m-gold)] focus:outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
+                Color Tag (Optional)
+              </label>
+              <input
+                name="color"
+                type="text"
+                placeholder="e.g. BLACK (blank = Universal)"
+                className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-gold)] focus:border-[var(--m-gold)] focus:outline-none"
               />
             </div>
           </div>
@@ -640,7 +687,7 @@ function AddMediaPanel({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
                 Image File (PNG, JPG, WEBP — Max 10MB) <span className="text-amber-400">*</span>
@@ -674,6 +721,19 @@ function AddMediaPanel({
                 onChange={(e) => setUploadAlt(e.target.value)}
                 placeholder="e.g. Back Graphic Angle"
                 className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-cream)] focus:border-[var(--m-gold)] focus:outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase text-[rgba(245,244,238,0.6)]">
+                Color Tag (Optional)
+              </label>
+              <input
+                type="text"
+                value={uploadColor}
+                onChange={(e) => setUploadColor(e.target.value)}
+                placeholder="e.g. BLACK (blank = Universal)"
+                className="px-3 py-2 rounded-lg bg-[rgba(0,0,0,0.5)] border border-[rgba(245,244,238,0.12)] text-xs text-[var(--m-gold)] focus:border-[var(--m-gold)] focus:outline-none"
               />
             </div>
           </div>

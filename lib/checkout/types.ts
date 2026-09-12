@@ -65,6 +65,7 @@ export interface ValidatedOrderItemSnapshot {
   productName: string;
   slug: string;
   size: string | null;
+  color: string | null;
   quantity: number;
   unitPriceMinor: number;
   lineTotalMinor: number;

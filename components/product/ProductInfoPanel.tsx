@@ -1,13 +1,21 @@
-import React from "react";
 import type { Product } from "@/lib/products/types";
 import { ProductActions } from "./ProductActions";
 
 interface ProductInfoPanelProps {
   product: Product;
+  availableColors?: string[];
+  selectedColor?: string | null;
+  onSelectColor?: (color: string) => void;
   className?: string;
 }
 
-export function ProductInfoPanel({ product, className = "" }: ProductInfoPanelProps) {
+export function ProductInfoPanel({
+  product,
+  availableColors,
+  selectedColor,
+  onSelectColor,
+  className = "",
+}: ProductInfoPanelProps) {
   const {
     workingName,
     officialName,
@@ -64,6 +72,10 @@ export function ProductInfoPanel({ product, className = "" }: ProductInfoPanelPr
       <ProductActions
         product={product}
         variants={variants}
+        allVariants={variants}
+        availableColors={availableColors}
+        selectedColor={selectedColor}
+        onSelectColor={onSelectColor}
         sizeGuide={sizeGuide}
       />
     </div>

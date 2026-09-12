@@ -240,6 +240,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
               productName: item.productName,
               slug: item.slug,
               size: item.size,
+              color: item.color,
               quantity: item.quantity,
               unitPriceMinor: item.unitPriceMinor,
             })),

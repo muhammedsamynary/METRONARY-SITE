@@ -4,8 +4,7 @@ import { getProductBySlug, getCatalogProducts } from "@/lib/data/products";
 import { getProductHoverTheme } from "@/lib/theme/gradient.presets";
 import { MetronaryBackground } from "@/components/background/MetronaryBackground";
 import {
-  ProductGallery,
-  ProductInfoPanel,
+  ProductShowcase,
   ProductBackLink,
 } from "@/components/product";
 
@@ -91,20 +90,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           className="w-full flex-1 flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-16 my-auto"
           aria-label={`${displayName} details`}
         >
-          {/* ── Center/Left: Dominant Garment Showcase ── */}
-          <div className="w-full lg:w-[58%] flex items-center justify-center">
-            <ProductGallery
-              images={product.images}
-              productName={displayName}
-              hasAlpha={product.hasAlpha}
-              className="w-full"
-            />
-          </div>
-
-          {/* ── Right: Translucent Glass Info & Action Panel ── */}
-          <div className="w-full lg:w-[42%] flex items-center justify-center lg:justify-end">
-            <ProductInfoPanel product={product} />
-          </div>
+          <ProductShowcase product={product} />
         </main>
       </div>
     </MetronaryBackground>

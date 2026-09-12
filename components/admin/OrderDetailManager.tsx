@@ -537,6 +537,7 @@ export function OrderDetailManager({ order }: OrderDetailManagerProps) {
                     <th className="py-3 px-4 text-left font-bold text-[var(--m-gold)]">
                       ITEM / PRODUCT
                     </th>
+                    <th className="py-3 px-3 text-center font-bold">COLOR</th>
                     <th className="py-3 px-3 text-center font-bold">SIZE</th>
                     <th className="py-3 px-3 text-center font-bold">QTY</th>
                     <th className="py-3 px-4 text-right font-bold">UNIT PRICE</th>
@@ -558,6 +559,16 @@ export function OrderDetailManager({ order }: OrderDetailManagerProps) {
                             /{item.slug} ↗
                           </Link>
                         </div>
+                      </td>
+
+                      <td className="py-3.5 px-3 text-center">
+                        {item.color ? (
+                          <span className="px-2 py-0.5 rounded bg-[rgba(251,133,0,0.1)] text-[var(--m-gold)] font-bold text-[11px] border border-[rgba(251,133,0,0.25)]">
+                            {item.color}
+                          </span>
+                        ) : (
+                          <span className="text-[rgba(245,244,238,0.3)]">—</span>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-3 text-center">

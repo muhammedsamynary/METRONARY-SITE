@@ -28,6 +28,8 @@ export interface ProductVariant {
   id: string;
   /** Size label (e.g. S, M, L) */
   size: "S" | "M" | "L" | "XL" | "XXL" | string;
+  /** Optional Color label (e.g. BLACK, WHITE, ORANGE) */
+  color?: string | null;
   /** Optional SKU identifier */
   sku?: string;
   /** Real stock status */
@@ -38,6 +40,16 @@ export interface ProductVariant {
   measurements?: VariantMeasurement;
   /** Active status */
   active?: boolean;
+}
+
+export interface ProductMediaItem {
+  id: string;
+  src: string;
+  alt?: string | null;
+  color?: string | null;
+  sortOrder: number;
+  isPrimary: boolean;
+  hasAlpha: boolean;
 }
 
 /**
@@ -91,8 +103,10 @@ export interface Product {
   price?: number | null;
   /** Currency code */
   currency: string;
-  /** All associated product media assets */
+  /** All associated product media assets (URLs) */
   images: string[];
+  /** Detailed product media records with color tags */
+  media?: ProductMediaItem[];
   /** Primary showcase image */
   thumbnail: string;
   /** Whether thumbnail is a transparent cutout (true) or studio frame (false) */

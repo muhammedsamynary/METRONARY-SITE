@@ -53,6 +53,7 @@ export function mapDbVariant(variant: DbProductVariant): ProductVariant {
   return {
     id: variant.id,
     size: variant.size ?? "OS",
+    color: variant.color ?? null,
     sku: variant.sku ?? undefined,
     stockStatus: mapDbStockStatus(variant.stockStatus),
     stockQuantity: variant.stockQuantity ?? null,
@@ -138,6 +139,16 @@ export function mapDbProduct(dbProduct: DbProductWithRelations): Product {
   const primaryMedia = sortedMedia.find((m) => m.isPrimary) || sortedMedia[0];
   const thumbnail = dbProduct.thumbnail || primaryMedia?.src || "/products/fearless.png";
 
+  const domainMedia = sortedMedia.map((m) => ({
+    id: m.id,
+    src: m.src,
+    alt: m.alt ?? null,
+    color: m.color ?? null,
+    sortOrder: m.sortOrder,
+    isPrimary: m.isPrimary,
+    hasAlpha: m.hasAlpha,
+  }));
+
   const variants = dbProduct.variants
     ? [...dbProduct.variants]
         .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -157,6 +168,7 @@ export function mapDbProduct(dbProduct: DbProductWithRelations): Product {
     price: mapDbPriceMinor(dbProduct.priceMinor),
     currency: dbProduct.currency,
     images: images.length > 0 ? images : [thumbnail],
+    media: domainMedia,
     thumbnail,
     hasAlpha: dbProduct.hasAlpha,
     gradientKey: dbProduct.gradientKey ?? undefined,

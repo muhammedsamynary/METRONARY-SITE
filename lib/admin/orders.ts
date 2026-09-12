@@ -42,6 +42,7 @@ export interface AdminOrderItem {
   productName: string;
   slug: string;
   size: string | null;
+  color: string | null;
   quantity: number;
   unitPriceMinor: number;
   lineTotalMinor: number;
@@ -230,6 +231,7 @@ export async function getAdminOrderById(id: string): Promise<AdminOrderDetailRes
         productName: item.productName,
         slug: item.slug,
         size: item.size,
+        color: item.color,
         quantity: qty,
         unitPriceMinor: item.unitPriceMinor,
         lineTotalMinor,

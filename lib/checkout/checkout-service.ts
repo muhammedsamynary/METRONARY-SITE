@@ -232,6 +232,7 @@ export async function validateCheckout(
       productName,
       slug: product.slug,
       size: dbVariant.size,
+      color: dbVariant.color ?? null,
       quantity: item.quantity,
       unitPriceMinor: product.priceMinor,
       lineTotalMinor,

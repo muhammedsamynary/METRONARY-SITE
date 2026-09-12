@@ -1,107 +1,293 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import type { Product, ProductVariant, SizeGuide } from "@/lib/products/types";
-import { ProductSizeSelector } from "./ProductSizeSelector";
+import { ProductColorSelector, type ColorOption } from "./ProductColorSelector";
+import { ProductSizeSelector, type SizeOption } from "./ProductSizeSelector";
 import { ProductAvailability } from "./ProductAvailability";
 import { useCart } from "@/components/cart/CartProvider";
 
 interface ProductActionsProps {
   product?: Product;
   variants?: ProductVariant[];
+  allVariants?: ProductVariant[];
+  availableColors?: string[];
+  selectedColor?: string | null;
+  onSelectColor?: (color: string) => void;
   sizeGuide?: SizeGuide | null;
   className?: string;
+}
+
+/**
+ * Check if a variant is available for purchase
+ */
+function isVariantPurchasable(v?: ProductVariant | null): boolean {
+  if (!v || v.active === false) return false;
+  if (v.stockStatus === "out_of_stock" || v.stockStatus === "unavailable") return false;
+  if (v.stockQuantity !== null && v.stockQuantity !== undefined && v.stockQuantity <= 0) return false;
+  return true;
 }
 
 export function ProductActions({
   product,
   variants = [],
+  allVariants,
+  availableColors = [],
+  selectedColor: controlledSelectedColor = null,
+  onSelectColor,
   sizeGuide = null,
   className = "",
 }: ProductActionsProps) {
   const { addItem } = useCart();
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
-  // If a product currently has no configured variants/sizes:
-  // Cleanly omit the size selector and CTA entirely rather than displaying a false "UNAVAILABLE" / "OUT OF STOCK"
-  if (!variants || variants.length === 0) {
-    return null;
-  }
+  const totalVariants = allVariants ?? variants;
 
+  // Local state for two-way selection
+  const [internalSelectedColor, setInternalSelectedColor] = useState<string | null>(
+    controlledSelectedColor
+  );
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [legacySelectedVariant, setLegacySelectedVariant] = useState<ProductVariant | null>(null);
+
+  // Sync controlled / internal color state
+  const selectedColor = controlledSelectedColor ?? internalSelectedColor;
+
+  const hasColors = availableColors && availableColors.length > 0;
+
+  // Collect all unique sizes across active variants
+  const availableSizes = useMemo(() => {
+    const set = new Set<string>();
+    const list: string[] = [];
+    for (const v of totalVariants) {
+      if (v.size && v.size.trim()) {
+        const s = v.size.trim();
+        if (!set.has(s)) {
+          set.add(s);
+          list.push(s);
+        }
+      }
+    }
+    return list;
+  }, [totalVariants]);
+
+  // Compute smart color availability (2-way reverse filtering)
+  const colorOptions: ColorOption[] = useMemo(() => {
+    return availableColors.map((color) => {
+      let disabled = false;
+      if (selectedSize) {
+        // Reverse check: does this color have a matching purchasable variant for the selected size?
+        const match = totalVariants.find(
+          (v) =>
+            (v.color || "").trim().toLowerCase() === color.trim().toLowerCase() &&
+            (v.size || "").trim().toLowerCase() === selectedSize.trim().toLowerCase()
+        );
+        if (!match || !isVariantPurchasable(match)) {
+          disabled = true;
+        }
+      } else {
+        // Are there any purchasable variants for this color?
+        const anyPurchasable = totalVariants.some(
+          (v) =>
+            (v.color || "").trim().toLowerCase() === color.trim().toLowerCase() &&
+            isVariantPurchasable(v)
+        );
+        if (!anyPurchasable) {
+          disabled = true;
+        }
+      }
+      return { name: color, disabled };
+    });
+  }, [availableColors, selectedSize, totalVariants]);
+
+  // Compute smart size availability (forward filtering)
+  const sizeOptions: SizeOption[] = useMemo(() => {
+    return availableSizes.map((size) => {
+      let disabled = false;
+      if (selectedColor) {
+        // Forward check: does the selected color have a matching purchasable variant for this size?
+        const match = totalVariants.find(
+          (v) =>
+            (v.color || "").trim().toLowerCase() === selectedColor.trim().toLowerCase() &&
+            (v.size || "").trim().toLowerCase() === size.trim().toLowerCase()
+        );
+        if (!match || !isVariantPurchasable(match)) {
+          disabled = true;
+        }
+      } else {
+        // Are there any purchasable variants for this size across any color?
+        const anyPurchasable = totalVariants.some(
+          (v) =>
+            (v.size || "").trim().toLowerCase() === size.trim().toLowerCase() &&
+            isVariantPurchasable(v)
+        );
+        if (!anyPurchasable) {
+          disabled = true;
+        }
+      }
+      return { size, disabled };
+    });
+  }, [availableSizes, selectedColor, totalVariants]);
+
+  // Resolve the active variant
+  const resolvedVariant: ProductVariant | null = useMemo(() => {
+    if (hasColors) {
+      if (!selectedColor || !selectedSize) return null;
+      return (
+        totalVariants.find(
+          (v) =>
+            (v.color || "").trim().toLowerCase() === selectedColor.trim().toLowerCase() &&
+            (v.size || "").trim().toLowerCase() === selectedSize.trim().toLowerCase()
+        ) ?? null
+      );
+    }
+    return legacySelectedVariant;
+  }, [hasColors, selectedColor, selectedSize, totalVariants, legacySelectedVariant]);
+
+  // Check valid confirmed price
   const hasValidPrice =
     product?.price !== null &&
     product?.price !== undefined &&
     product.price > 0;
 
-  const isOutOfStock = selectedVariant?.stockStatus === "out_of_stock";
-  const isUnavailable = selectedVariant?.stockStatus === "unavailable";
-  const isVariantActive = selectedVariant?.active !== false;
+  const isOutOfStock = resolvedVariant?.stockStatus === "out_of_stock";
+  const isUnavailable = resolvedVariant?.stockStatus === "unavailable";
+  const isVariantActive = resolvedVariant?.active !== false;
 
   const isStockAvailable =
-    selectedVariant?.stockQuantity === null ||
-    selectedVariant?.stockQuantity === undefined ||
-    selectedVariant.stockQuantity > 0;
+    resolvedVariant?.stockQuantity === null ||
+    resolvedVariant?.stockQuantity === undefined ||
+    resolvedVariant.stockQuantity > 0;
 
-  // Real database commerce eligibility logic:
-  // - A variant must be selected
-  // - Product must have a real confirmed price > 0
-  // - Variant must be active
-  // - Inventory must be confirmed as in_stock or low_stock
-  // - If numeric stockQuantity exists, it must be > 0
   const isStockConfirmed =
-    (selectedVariant?.stockStatus === "in_stock" ||
-      selectedVariant?.stockStatus === "low_stock") &&
+    (resolvedVariant?.stockStatus === "in_stock" ||
+      resolvedVariant?.stockStatus === "low_stock") &&
     isStockAvailable;
 
   const isEligible =
-    selectedVariant !== null &&
+    resolvedVariant !== null &&
     hasValidPrice &&
     isVariantActive &&
-    isStockConfirmed;
+    isStockConfirmed &&
+    (!hasColors || (selectedColor !== null && selectedSize !== null));
 
-  const handleSelectVariant = (variant: ProductVariant) => {
-    setSelectedVariant(variant);
+  // Selection Handlers with Option Preservation
+  const handleSelectColor = (newColor: string) => {
+    // If a size was already selected, check if (newColor, selectedSize) is possible & purchasable
+    if (selectedSize) {
+      const match = totalVariants.find(
+        (v) =>
+          (v.color || "").trim().toLowerCase() === newColor.trim().toLowerCase() &&
+          (v.size || "").trim().toLowerCase() === selectedSize.trim().toLowerCase()
+      );
+      if (!match || !isVariantPurchasable(match)) {
+        // Clear impossible size selection
+        setSelectedSize(null);
+      }
+    }
+    setInternalSelectedColor(newColor);
+    onSelectColor?.(newColor);
+  };
+
+  const handleSelectSize = (newSize: string) => {
+    // If a color was already selected, check if (selectedColor, newSize) is possible & purchasable
+    if (selectedColor) {
+      const match = totalVariants.find(
+        (v) =>
+          (v.color || "").trim().toLowerCase() === selectedColor.trim().toLowerCase() &&
+          (v.size || "").trim().toLowerCase() === newSize.trim().toLowerCase()
+      );
+      if (!match || !isVariantPurchasable(match)) {
+        // Clear impossible color selection
+        setInternalSelectedColor(null);
+        onSelectColor?.("");
+      }
+    }
+    setSelectedSize(newSize);
+  };
+
+  const handleLegacySelectVariant = (variant: ProductVariant) => {
+    setLegacySelectedVariant(variant);
   };
 
   const handleAddToCart = () => {
-    if (!isEligible || !selectedVariant || !product) return;
+    if (!isEligible || !resolvedVariant || !product) return;
 
     addItem({
       productId: product.id,
       slug: product.slug,
       displayName: product.officialName ?? product.workingName,
       thumbnail: product.thumbnail,
-      variantId: selectedVariant.id,
-      size: selectedVariant.size,
+      variantId: resolvedVariant.id,
+      size: resolvedVariant.size,
+      color: resolvedVariant.color ?? null,
       unitPrice: product.price ?? null,
       currency: product.currency,
-      stockStatus: selectedVariant.stockStatus,
-      maxQuantity: selectedVariant.stockQuantity ?? null,
+      stockStatus: resolvedVariant.stockStatus,
+      maxQuantity: resolvedVariant.stockQuantity ?? null,
     });
   };
 
   const getButtonText = () => {
-    if (!selectedVariant) return "SELECT SIZE";
-    if (selectedVariant.stockStatus === "unknown") return "AVAILABILITY PENDING";
-    if (isOutOfStock) return "OUT OF STOCK";
-    if (isUnavailable || selectedVariant.active === false) return "UNAVAILABLE";
+    if (hasColors) {
+      if (!selectedColor && !selectedSize) return "SELECT COLOR & SIZE";
+      if (selectedColor && !selectedSize) return "SELECT SIZE";
+      if (!selectedColor && selectedSize) return "SELECT COLOR";
+      if (!resolvedVariant) return "UNAVAILABLE";
+      if (resolvedVariant.stockStatus === "unknown") return "AVAILABILITY PENDING";
+      if (isOutOfStock) return "OUT OF STOCK";
+      if (isUnavailable || resolvedVariant.active === false) return "UNAVAILABLE";
+      if (!hasValidPrice) return "PRICE PENDING";
+      return "ADD TO BAG";
+    }
+
+    // Legacy Single-Dimension Size Mode
+    if (!legacySelectedVariant) return "SELECT SIZE";
+    if (legacySelectedVariant.stockStatus === "unknown") return "AVAILABILITY PENDING";
+    if (legacySelectedVariant.stockStatus === "out_of_stock") return "OUT OF STOCK";
+    if (legacySelectedVariant.stockStatus === "unavailable" || legacySelectedVariant.active === false) {
+      return "UNAVAILABLE";
+    }
     if (!hasValidPrice) return "PRICE PENDING";
     return "ADD TO BAG";
   };
 
+  // If a product currently has no configured variants:
+  // Cleanly omit the selector and CTA entirely rather than displaying a false "UNAVAILABLE" / "OUT OF STOCK"
+  if (!totalVariants || totalVariants.length === 0) {
+    return null;
+  }
+
   return (
     <div className={`flex flex-col gap-5 mt-6 ${className}`}>
-      {/* ── Real Data-Driven Size Selector & Guide ── */}
-      <ProductSizeSelector
-        variants={variants}
-        sizeGuide={sizeGuide}
-        selectedVariantId={selectedVariant?.id ?? null}
-        onSelectVariant={handleSelectVariant}
-      />
+      {/* ── Multi-Color Selector (Only when product has one or more color variants) ── */}
+      {hasColors && (
+        <ProductColorSelector
+          colors={colorOptions}
+          selectedColor={selectedColor}
+          onSelectColor={handleSelectColor}
+        />
+      )}
+
+      {/* ── Size Selector (Simultaneously visible with smart disabled states) ── */}
+      {hasColors ? (
+        <ProductSizeSelector
+          sizeOptions={sizeOptions}
+          sizeGuide={sizeGuide}
+          selectedSize={selectedSize}
+          onSelectSize={handleSelectSize}
+        />
+      ) : (
+        <ProductSizeSelector
+          variants={totalVariants}
+          sizeGuide={sizeGuide}
+          selectedVariantId={legacySelectedVariant?.id ?? null}
+          onSelectVariant={handleLegacySelectVariant}
+        />
+      )}
 
       {/* ── Status Indicator (Only when verified by confirmed data) ── */}
-      {selectedVariant && selectedVariant.stockStatus !== "unknown" && (
-        <ProductAvailability status={selectedVariant.stockStatus} />
+      {resolvedVariant && resolvedVariant.stockStatus !== "unknown" && (
+        <ProductAvailability status={resolvedVariant.stockStatus} />
       )}
 
       {/* ── Action CTA (Connected to CartProvider) ── */}

@@ -78,6 +78,7 @@ model ProductMedia {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   src       String
   alt       String?
+  color     String?
   sortOrder Int      @default(0)
   isPrimary Boolean  @default(false)
   hasAlpha  Boolean  @default(true)
@@ -91,6 +92,7 @@ model ProductVariant {
   productId     String
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   size          String?
+  color         String?
   sku           String?
   stockStatus   StockStatus @default(UNKNOWN)
   stockQuantity Int?
@@ -187,6 +189,7 @@ model OrderItem {
   productName    String
   slug           String
   size           String?
+  color          String?
   quantity       Int      @default(1)
   unitPriceMinor Int
   createdAt      DateTime @default(now())
