@@ -77,8 +77,11 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 12,
       },
       mobile: {
-        width: "0px",
-        hidden: true,
+        top: "330px",
+        right: "5%",
+        width: "min(50vw, 195px)",
+        rotation: 4,
+        zIndex: 13,
       },
     },
   },
@@ -108,10 +111,10 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 14,
       },
       mobile: {
-        top: "60px",
-        right: "-4%",
-        width: "min(42vw, 165px)",
-        rotation: 5,
+        top: "560px",
+        left: "5%",
+        width: "min(50vw, 195px)",
+        rotation: -4,
         zIndex: 14,
       },
     },
@@ -143,9 +146,9 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 13,
       },
       mobile: {
-        top: "380px",
-        left: "-2%",
-        width: "min(45vw, 175px)",
+        top: "790px",
+        right: "4%",
+        width: "min(52vw, 200px)",
         rotation: 3,
         zIndex: 13,
       },
@@ -177,9 +180,9 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 14,
       },
       mobile: {
-        top: "590px",
-        right: "-2%",
-        width: "min(46vw, 185px)",
+        top: "1020px",
+        left: "6%",
+        width: "min(52vw, 205px)",
         rotation: 4,
         zIndex: 14,
       },
@@ -213,9 +216,9 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 15,
       },
       mobile: {
-        top: "840px",
-        left: "6%",
-        width: "min(56vw, 220px)",
+        top: "1250px",
+        right: "5%",
+        width: "min(54vw, 210px)",
         rotation: 2,
         zIndex: 15,
       },
@@ -247,9 +250,9 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 14,
       },
       mobile: {
-        top: "1090px",
-        right: "-4%",
-        width: "min(44vw, 175px)",
+        top: "1480px",
+        left: "5%",
+        width: "min(50vw, 195px)",
         rotation: -4,
         zIndex: 14,
       },
@@ -281,9 +284,9 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 13,
       },
       mobile: {
-        top: "1340px",
-        left: "12%",
-        width: "min(48vw, 190px)",
+        top: "1710px",
+        right: "6%",
+        width: "min(52vw, 200px)",
         rotation: 4,
         zIndex: 13,
       },
@@ -317,8 +320,8 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 14,
       },
       mobile: {
-        top: "1590px",
-        left: "8%",
+        top: "1940px",
+        left: "6%",
         width: "min(54vw, 215px)",
         rotation: -3,
         zIndex: 14,
@@ -351,7 +354,7 @@ export const HOMEPAGE_PRODUCTS: FloatingProductData[] = [
         zIndex: 14,
       },
       mobile: {
-        top: "1850px",
+        top: "2170px",
         right: "6%",
         width: "min(54vw, 215px)",
         rotation: 4,
@@ -377,7 +380,7 @@ export function ProductField({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full min-h-[1680px] sm:min-h-[1780px] max-sm:min-h-[2250px] pb-24 pointer-events-none overflow-hidden ${className}`}
+      className={`relative w-full min-h-[1680px] sm:min-h-[1780px] max-sm:min-h-[2500px] pb-24 pointer-events-none overflow-hidden ${className}`}
       aria-label="Metronary spatial product field"
     >
       {products.map((product) => (

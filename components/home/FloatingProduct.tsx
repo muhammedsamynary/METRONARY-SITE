@@ -18,7 +18,10 @@ const SHADOW_MAP = {
     "drop-shadow-[0_6px_16px_rgba(0,0,0,0.38)] group-hover:drop-shadow-[0_10px_24px_rgba(232,93,4,0.24)] group-focus-visible:drop-shadow-[0_10px_24px_rgba(232,93,4,0.24)]",
 };
 
-export function FloatingProduct({ product, onHover }: FloatingProductProps) {
+export function FloatingProduct({
+  product,
+  onHover,
+}: FloatingProductProps) {
   const {
     slug,
     name,
@@ -77,7 +80,8 @@ export function FloatingProduct({ product, onHover }: FloatingProductProps) {
 
   return (
     <div
-      className="m-floating-product pointer-events-auto select-none group"
+      id={`product-${slug}`}
+      className="m-floating-product pointer-events-auto select-none group transition-all duration-500 ease-out opacity-100"
       style={styleVars as React.CSSProperties}
     >
       {/* ── Parallax & Idle Motion Composition Wrapper ── */}

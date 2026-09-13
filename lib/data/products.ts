@@ -50,13 +50,18 @@ export async function getCatalogProducts(): Promise<Product[]> {
     return getFallbackProducts();
   }
 
-  const dbProducts = await prisma.product.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-    include: PRODUCT_RELATIONS_INCLUDE,
-  });
+  try {
+    const dbProducts = await prisma.product.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      include: PRODUCT_RELATIONS_INCLUDE,
+    });
 
-  return (dbProducts as unknown as DbProductWithRelations[]).map(mapDbProduct);
+    return (dbProducts as unknown as DbProductWithRelations[]).map(mapDbProduct);
+  } catch (err) {
+    console.warn("[products] Database query failed, using fallback catalog:", err);
+    return getFallbackProducts();
+  }
 }
 
 /**
@@ -75,16 +80,21 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
     return getFallbackProductBySlug(slug);
   }
 
-  const dbProduct = await prisma.product.findUnique({
-    where: { slug },
-    include: PRODUCT_RELATIONS_INCLUDE,
-  });
+  try {
+    const dbProduct = await prisma.product.findUnique({
+      where: { slug },
+      include: PRODUCT_RELATIONS_INCLUDE,
+    });
 
-  if (!dbProduct || !dbProduct.active) {
-    return undefined;
+    if (!dbProduct || !dbProduct.active) {
+      return undefined;
+    }
+
+    return mapDbProduct(dbProduct as unknown as DbProductWithRelations);
+  } catch (err) {
+    console.warn(`[products] Database query failed for slug "${slug}", using fallback:`, err);
+    return getFallbackProductBySlug(slug);
   }
-
-  return mapDbProduct(dbProduct as unknown as DbProductWithRelations);
 }
 
 /**

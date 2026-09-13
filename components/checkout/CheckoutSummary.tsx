@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import type { CartItem } from "@/lib/cart/types";
 import { formatCurrency } from "@/lib/cart/cart-utils";
 import type { DeliveryQuoteState } from "./CheckoutForm";
+import { LegalModal, type LegalModalType } from "./LegalModal";
 
 interface CheckoutSummaryProps {
   items: CartItem[];
@@ -25,6 +26,10 @@ export function CheckoutSummary({
   isSubmitting = false,
   onSubmit,
 }: CheckoutSummaryProps) {
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const [activeLegalModal, setActiveLegalModal] = useState<LegalModalType>(null);
+
   // Determine if any item in the cart is ineligible for purchase (e.g. stock UNKNOWN/OUT_OF_STOCK or price null)
   const hasIneligibleItems = items.some(
     (item) => item.unitPrice === null || item.stockStatus === "unknown" || item.stockStatus === "out_of_stock" || item.stockStatus === "unavailable"
@@ -61,7 +66,24 @@ export function CheckoutSummary({
     subtotal !== null &&
     isFormValid &&
     isDeliveryConfigured &&
+    termsAccepted &&
     !isSubmitting;
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setTermsAccepted(checked);
+    if (checked) {
+      setTermsError(null);
+    }
+  };
+
+  const handlePlaceOrderClick = () => {
+    if (!termsAccepted) {
+      setTermsError("Please agree to the Terms & Conditions and Privacy Policy to place your order.");
+      return;
+    }
+    setTermsError(null);
+    onSubmit();
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -222,16 +244,99 @@ export function CheckoutSummary({
         </div>
       )}
 
+      {/* ── Required Terms & Privacy Policy Consent Checkbox ── */}
+      <div className="pt-2 flex flex-col gap-2">
+        <label
+          htmlFor="checkout-terms-checkbox"
+          className="flex items-start gap-3 cursor-pointer select-none group min-h-[44px] py-1"
+        >
+          {/* Custom Checkbox wrapping native input */}
+          <div className="relative flex items-center justify-center shrink-0 mt-0.5">
+            <input
+              id="checkout-terms-checkbox"
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => handleCheckboxChange(e.target.checked)}
+              className="sr-only peer"
+              aria-describedby={termsError ? "terms-error" : undefined}
+            />
+            <div
+              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--m-gold)] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--m-dark)] ${
+                termsAccepted
+                  ? "bg-[var(--m-gold)] border-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_0_12px_rgba(251,133,0,0.35)]"
+                  : termsError
+                  ? "border-red-500/80 bg-[rgba(239,68,68,0.1)]"
+                  : "border-[rgba(245,244,238,0.25)] bg-[rgba(0,0,0,0.3)] group-hover:border-[rgba(245,244,238,0.5)]"
+              }`}
+            >
+              {termsAccepted && (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-fadeIn"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </div>
+          </div>
+
+          <span className="text-xs text-[rgba(245,244,238,0.7)] leading-relaxed">
+            I agree to the{" "}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveLegalModal("terms");
+              }}
+              className="text-[var(--m-gold)] underline underline-offset-2 hover:text-[var(--m-yellow)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--m-gold)] rounded px-0.5"
+            >
+              Terms & Conditions
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveLegalModal("privacy");
+              }}
+              className="text-[var(--m-gold)] underline underline-offset-2 hover:text-[var(--m-yellow)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--m-gold)] rounded px-0.5"
+            >
+              Privacy Policy
+            </button>
+            .
+          </span>
+        </label>
+
+        {termsError && (
+          <span
+            id="terms-error"
+            className="text-xs text-red-400 font-mono tracking-wide pl-8 animate-fadeIn"
+          >
+            {termsError}
+          </span>
+        )}
+      </div>
+
       {/* ── Place Order Action Button ── */}
-      <div className="pt-2">
+      <div className="pt-1">
         <button
           type="button"
-          onClick={onSubmit}
-          disabled={!canPlaceOrder || isSubmitting}
-          className={`w-full py-4 px-6 rounded-xl text-xs tracking-[0.24em] uppercase font-bold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
+          onClick={handlePlaceOrderClick}
+          disabled={isSubmitting}
+          className={`w-full py-4 px-6 rounded-xl text-xs tracking-[0.24em] uppercase font-bold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] min-h-[48px] ${
             canPlaceOrder
               ? "bg-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_4px_24px_rgba(251,133,0,0.4)] hover:bg-[var(--m-yellow)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-              : "bg-[rgba(245,244,238,0.06)] border border-[rgba(245,244,238,0.1)] text-[rgba(245,244,238,0.35)] cursor-not-allowed"
+              : "bg-[rgba(245,244,238,0.06)] border border-[rgba(245,244,238,0.1)] text-[rgba(245,244,238,0.35)] cursor-pointer"
           }`}
           aria-disabled={!canPlaceOrder}
         >
@@ -242,6 +347,12 @@ export function CheckoutSummary({
           CASH ON DELIVERY • NO ADVANCE PAYMENT REQUIRED
         </p>
       </div>
+
+      {/* ── Legal Modal ── */}
+      <LegalModal
+        type={activeLegalModal}
+        onClose={() => setActiveLegalModal(null)}
+      />
     </div>
   );
 }
