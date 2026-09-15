@@ -27,7 +27,8 @@ export function SiteHeader() {
 export function SiteFooter() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) {
+  // On admin routes and homepage (which embeds Footer into its Home -> Footer -> About flow), exclude global footer
+  if (pathname.startsWith("/admin") || pathname === "/") {
     return null;
   }
 

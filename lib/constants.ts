@@ -17,7 +17,8 @@ export const SITE = {
 export const NAV_LINKS = [
   { label: "Shop", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
+  { label: "Policy", href: "/policy" },
+  { label: "Terms", href: "/terms" },
 ] as const;
 
 export const CURRENCY = {
@@ -36,6 +37,8 @@ export const ROUTES = {
   shop: "/",
   product: (slug: string) => `/product/${slug}`,
   about: "/about",
+  policy: "/policy",
+  terms: "/terms",
   contact: "/contact",
   checkout: "/checkout",
   order: (id: string) => `/order/${id}`,

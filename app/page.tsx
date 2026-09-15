@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useSyncExternalStore, useCallback } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { MetronaryBackground } from "@/components/background/MetronaryBackground";
 import { PRESET_DEFAULT, getProductHoverTheme } from "@/lib/theme/gradient.presets";
 import {
   ProductField,
   CatalogGrid,
-  LayoutToggle,
   HOMEPAGE_PRODUCTS,
   type HomepageLayoutMode,
 } from "@/components/home";
+import { Footer } from "@/components/Footer";
+import { AboutContent } from "@/components/about/AboutContent";
 
 const STORAGE_KEY = "metronary_homepage_layout";
 
@@ -25,7 +26,7 @@ function getSnapshot(): HomepageLayoutMode {
       return saved;
     }
   } catch {
-    // Ignore localStorage access failures (e.g. private browsing)
+    // Ignore storage errors
   }
   return "original";
 }
@@ -35,60 +36,48 @@ function getServerSnapshot(): HomepageLayoutMode {
 }
 
 export default function HomePage() {
-  const [localLayout, setLocalLayout] = useState<HomepageLayoutMode | null>(null);
-  const syncedLayout = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const layout = localLayout ?? syncedLayout;
-
+  const layout = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null);
 
-  const handleSelectLayout = useCallback((mode: HomepageLayoutMode) => {
-    setLocalLayout(mode);
-    try {
-      localStorage.setItem(STORAGE_KEY, mode);
-      window.dispatchEvent(new Event("storage"));
-    } catch {
-      // Ignore localStorage access failures
-    }
-  }, []);
-
-  // Active theme dynamically shifts based on hovered garment in Layout 1
+  // Active theme dynamically shifts based on hovered garment across both layouts
   const activeTheme = hoveredSlug ? getProductHoverTheme(hoveredSlug) : PRESET_DEFAULT;
 
   return (
-    <>
-      {layout === "original" ? (
-        /* ── LAYOUT 1: ORIGINAL METRONARY SPATIAL / MESSY COMPOSITION ── */
-        <MetronaryBackground
-          theme={activeTheme}
-          className="w-full min-h-screen flex flex-col"
-        >
-          <main
-            className="relative w-full flex-1 flex flex-col overflow-hidden"
-            aria-label="Metronary Storefront"
-          >
-            <ProductField
-              products={HOMEPAGE_PRODUCTS}
-              onHoverProduct={setHoveredSlug}
-            />
-          </main>
-        </MetronaryBackground>
-      ) : (
-        /* ── LAYOUT 2: YEEZY-STYLE CLEAN CATALOG GRID ── */
-        <div
-          className="w-full min-h-screen bg-[#ebebeb] text-[#141210] flex flex-col transition-colors duration-500"
-          style={{ backgroundColor: "#ebebeb" }}
-        >
-          <main
-            className="relative w-full flex-1 flex flex-col"
-            aria-label="Metronary Catalog Grid"
-          >
-            <CatalogGrid products={HOMEPAGE_PRODUCTS} />
-          </main>
-        </div>
-      )}
+    <MetronaryBackground
+      theme={activeTheme}
+      className="w-full min-h-screen flex flex-col transition-colors duration-700"
+    >
+      {/* ── 1. PRIMARY STOREFRONT PRODUCT EXPERIENCE (MESSY OR GRID) ── */}
+      <main
+        className="relative w-full flex-1 flex flex-col"
+        aria-label="Metronary Storefront"
+      >
+        {layout === "original" ? (
+          /* ── LAYOUT 1: ORIGINAL METRONARY SPATIAL / MESSY COMPOSITION ── */
+          <ProductField
+            products={HOMEPAGE_PRODUCTS}
+            onHoverProduct={setHoveredSlug}
+          />
+        ) : (
+          /* ── LAYOUT 2: YEEZY-STYLE CLEAN CATALOG GRID IN SAME FIERY WORLD ── */
+          <CatalogGrid
+            products={HOMEPAGE_PRODUCTS}
+            onHoverProduct={setHoveredSlug}
+          />
+        )}
+      </main>
 
-      {/* ── Minimal Layout Switcher ── */}
-      <LayoutToggle layout={layout} onSelectLayout={handleSelectLayout} />
-    </>
+      {/* ── 2. TRANSITIONAL BRIDGE: NEW NARY BRAND FOOTER ── */}
+      <Footer />
+
+      {/* ── 3. CONTINUOUS SCROLL: ABOUT US CONTENT ── */}
+      <section
+        id="about"
+        aria-label="About METRONARY"
+        className="w-full relative border-t border-[var(--m-gold)]/20 bg-gradient-to-b from-[#080604] via-[#0f0b07] to-[var(--m-dark)]"
+      >
+        <AboutContent />
+      </section>
+    </MetronaryBackground>
   );
 }

@@ -1,140 +1,191 @@
-import Link from "next/link";
-import { SITE, NAV_LINKS } from "@/lib/constants";
-import { LogoPrimary } from "@/components/brand/Logo";
+"use client";
 
+import React from "react";
+import Link from "next/link";
+import { SITE, ROUTES } from "@/lib/constants";
+
+/**
+ * ─── REFERENCE-ACCURATE NARY BRAND FOOTER ───
+ *
+ * Visually matched to `references/nary-footer-reference.png`:
+ * - Warm glowing fiery background (burnt orange, deep amber, golden top-right glow).
+ * - Thin golden/orange divider grid lines.
+ * - Left column: Large, elegant Quranic verse (Surah Saba: 39).
+ * - Center column: SHOP, ABOUT US, POLICY, TERMS.
+ * - Right column: FOLLOW NARY with outlined square Instagram and Facebook icons.
+ * - Giant solid off-white NARY® wordmark spanning full width.
+ * - Copyright row: "© 2026 NARY" and "ALL RIGHTS RESERVED".
+ * - Bottom strip: Large repeating Arabic "ناري" in warm gold.
+ */
 export function Footer() {
   const year = new Date().getFullYear();
 
   return (
     <footer
-      className="relative w-full border-t border-white/[0.08] bg-[#0c0c0a] text-[var(--m-mist)] overflow-hidden"
-      aria-label="Site Footer"
+      className="relative w-full border-t border-[#d97706]/70 text-[#faf6f0] overflow-hidden select-none"
+      style={{
+        background:
+          "radial-gradient(circle at 85% 15%, #a84200 0%, #682200 40%, #3a1000 75%, #240a00 100%)",
+      }}
+      aria-label="NARY Brand Footer"
     >
-      {/* Top subtle fiery amber ambient light */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 max-w-4xl h-px bg-gradient-to-r from-transparent via-[var(--m-gold)]/50 to-transparent pointer-events-none"
-        aria-hidden="true"
-      />
-
-      <div className="max-w-[1240px] mx-auto px-6 sm:px-10 pt-16 sm:pt-20 pb-12 flex flex-col gap-12 sm:gap-16">
-        {/* ── TOP LAYER: Editorial Brand Identity & Navigation Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 sm:gap-12 pb-12 border-b border-white/[0.06]">
-          {/* Brand Identity / Core Summary (Left 5 Cols) */}
-          <div className="md:col-span-5 flex flex-col gap-5">
-            <div className="flex items-center gap-3">
-              <LogoPrimary
-                size={32}
-                className="filter drop-shadow-[0_0_12px_rgba(232,93,4,0.5)]"
-              />
-              <span
-                className="font-black uppercase tracking-[0.24em] text-[var(--m-cream)] text-lg"
-                style={{ fontFamily: "var(--m-font-heading)" }}
-              >
-                METRONARY
-              </span>
-            </div>
-
-            <p className="text-xs sm:text-sm font-mono text-[var(--m-cream)]/70 leading-relaxed max-w-sm">
-              Metronary—derived from Metro &amp; Nary (ناري)—means a blazing,
-              fiery metro racing with unstoppable speed. Born in Giza, Egypt.
+      <div className="w-full">
+        {/* ── 1. UPPER SECTION: 3-Column Grid with Golden Dividers ── */}
+        <div className="grid grid-cols-1 md:grid-cols-12 border-b border-[#d97706]/70">
+          {/* ── LEFT COLUMN: Holy Quranic Verse (Saba: 39) ── */}
+          <div className="md:col-span-5 p-6 sm:p-10 lg:p-12 flex items-center justify-center text-center border-b md:border-b-0 md:border-r border-[#d97706]/70">
+            <p
+              dir="rtl"
+              className="text-base sm:text-lg md:text-xl lg:text-[22px] font-serif leading-[2.1] sm:leading-[2.2] text-[#fdfcf8] font-medium tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] max-w-lg"
+              style={{
+                fontFamily:
+                  "'Amiri', 'Traditional Arabic', 'Scheherazade New', 'Noto Naskh Arabic', Georgia, serif",
+              }}
+            >
+              ﴿إِنَّ رَبِّي يَبْسُطُ الرِّزْقَ لِمَنْ يَشَاءُ مِنْ عِبَادِهِ وَيَقْدِرُ لَهُ وَمَا أَنْفَقْتُمْ مِنْ شَيْءٍ فَهُوَ يُخْلِفُهُ وَهُوَ خَيْرُ الرَّازِقِينَ﴾ [سبأ: 39].
             </p>
-
-            <div className="flex items-center gap-2 pt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--m-gold)] animate-pulse" />
-              <span className="text-[10px] font-mono tracking-[0.22em] uppercase text-[var(--m-gold)]">
-                BORN IN GIZA, EGYPT
-              </span>
-            </div>
           </div>
 
-          {/* Navigation Links (Middle 3 Cols) */}
-          <div className="md:col-span-3 flex flex-col gap-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-[var(--m-gold)]">
-              NAVIGATION
-            </span>
-            <nav aria-label="Footer navigation">
-              <ul className="flex flex-col gap-3 list-none m-0 p-0 font-mono text-xs">
-                {NAV_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="inline-block py-1 text-[var(--m-cream)]/75 hover:text-[var(--m-gold)] transition-colors duration-200 tracking-wider uppercase"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+          {/* ── CENTER COLUMN: Directory Navigation Links ── */}
+          <div className="md:col-span-4 p-6 sm:p-10 lg:p-12 flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#d97706]/70">
+            <nav aria-label="Footer Navigation">
+              <ul className="flex flex-col gap-3.5 sm:gap-4 list-none m-0 p-0 font-mono text-xs sm:text-sm tracking-[0.22em] uppercase font-bold text-[#faf6f0]">
+                <li>
+                  <Link
+                    href={ROUTES.shop}
+                    className="hover:text-[var(--m-gold)] transition-colors inline-block py-0.5"
+                  >
+                    SHOP
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={ROUTES.about}
+                    className="hover:text-[var(--m-gold)] transition-colors inline-block py-0.5"
+                  >
+                    ABOUT US
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={ROUTES.policy}
+                    className="hover:text-[var(--m-gold)] transition-colors inline-block py-0.5"
+                  >
+                    POLICY
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={ROUTES.terms}
+                    className="hover:text-[var(--m-gold)] transition-colors inline-block py-0.5"
+                  >
+                    TERMS
+                  </Link>
+                </li>
               </ul>
             </nav>
           </div>
 
-          {/* Direct Connect & Origin (Right 4 Cols) */}
-          <div className="md:col-span-4 flex flex-col gap-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-[var(--m-gold)]">
-              DISPATCH & CONNECT
+          {/* ── RIGHT COLUMN: Follow NARY Social Outlined Boxes ── */}
+          <div className="md:col-span-3 p-6 sm:p-10 lg:p-12 flex flex-col justify-center gap-4 sm:gap-5">
+            <span className="text-xs sm:text-sm font-mono font-bold uppercase tracking-[0.24em] text-[#faf6f0]">
+              FOLLOW NARY
             </span>
-            <div className="flex flex-col gap-3 font-mono text-xs">
-              <div>
-                <span className="text-[10px] text-[var(--m-cream)]/40 block mb-0.5 uppercase tracking-wider">
-                  DIRECT INQUIRIES
-                </span>
-                <a
-                  href={`mailto:${SITE.email}`}
-                  className="inline-block py-1 text-[var(--m-cream)]/85 hover:text-[var(--m-gold)] transition-colors duration-200"
-                >
-                  {SITE.email}
-                </a>
-              </div>
 
-              {SITE.social.instagram && (
-                <div>
-                  <span className="text-[10px] text-[var(--m-cream)]/40 block mb-0.5 uppercase tracking-wider">
-                    SOCIAL ARCHIVE
-                  </span>
-                  <a
-                    href={SITE.social.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 py-1 text-[var(--m-cream)]/85 hover:text-[var(--m-gold)] transition-colors duration-200"
-                  >
-                    <span>INSTAGRAM</span>
-                    <span className="text-[10px] text-[var(--m-gold)]">↗</span>
-                  </a>
-                </div>
-              )}
+            <div className="flex items-center gap-3.5">
+              {/* Instagram Box */}
+              <a
+                href={SITE.social.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-11 h-11 sm:w-12 sm:h-12 border border-[#faf6f0]/90 flex items-center justify-center text-[#faf6f0] hover:text-[var(--m-gold)] hover:border-[var(--m-gold)] transition-all duration-200"
+                aria-label="Follow NARY on Instagram"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                </svg>
+              </a>
+
+              {/* Facebook Box */}
+              <div
+                className="w-11 h-11 sm:w-12 sm:h-12 border border-[#faf6f0]/90 flex items-center justify-center text-[#faf6f0] cursor-default"
+                aria-label="Follow NARY on Facebook"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── MIDDLE LAYER: Large Clamped Brand Wordmark Statement ── */}
-        <div
-          className="w-full flex flex-col items-center justify-center text-center select-none py-2"
-          aria-hidden="true"
-        >
-          <span
-            className="w-full font-black uppercase text-center text-transparent bg-clip-text bg-gradient-to-b from-white/[0.16] to-white/[0.02] tracking-[0.14em] sm:tracking-[0.18em] leading-none"
-            style={{
-              fontFamily: "var(--m-font-heading)",
-              fontSize: "clamp(2.5rem, 11vw, 7.5rem)",
-            }}
-          >
-            METRONARY
-          </span>
-          <span className="text-[9px] sm:text-[11px] font-mono tracking-[0.3em] uppercase text-[var(--m-gold)]/60 mt-2">
-            UNDERGROUND ENERGY • WEARABLE FIRE
-          </span>
+        {/* ── 2. GIANT NARY® MONUMENTAL WORDMARK SECTION ── */}
+        <div className="w-full px-4 sm:px-8 py-2 sm:py-4 flex items-center justify-center border-b border-[#d97706]/70 overflow-hidden">
+          <div className="relative flex items-center justify-center max-w-full">
+            <span
+              className="font-black uppercase text-[#faf6f0] tracking-[-0.02em] sm:tracking-[-0.01em] leading-none whitespace-nowrap select-none drop-shadow-[0_4px_32px_rgba(0,0,0,0.6)]"
+              style={{
+                fontFamily: "var(--m-font-heading)",
+                fontSize: "clamp(5.5rem, 24vw, 24rem)",
+              }}
+            >
+              NARY
+            </span>
+            {/* Registered Trademark Symbol ® */}
+            <span
+              className="font-bold text-[#faf6f0] leading-none select-none align-top -translate-y-8 sm:-translate-y-16 md:-translate-y-24 lg:-translate-y-28 ml-1 sm:ml-2"
+              style={{
+                fontSize: "clamp(1.5rem, 5vw, 4.5rem)",
+              }}
+            >
+              ®
+            </span>
+          </div>
         </div>
 
-        {/* ── BOTTOM BAR: Copyright & Coordinate Details ── */}
-        <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] sm:text-[11px] font-mono text-[var(--m-cream)]/45">
-          <p>© {year} METRONARY. ALL RIGHTS RESERVED.</p>
+        {/* ── 3. COPYRIGHT ROW ── */}
+        <div className="w-full px-6 sm:px-10 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm font-mono tracking-[0.2em] text-[#faf6f0] uppercase border-b border-[#d97706]/70">
+          <p>© {year} NARY</p>
+          <p>ALL RIGHTS RESERVED</p>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <span>GIZA, EGYPT</span>
-            <span>•</span>
-            <span className="text-[var(--m-gold)] font-bold">ناري</span>
-            <span>•</span>
-            <span>29.9870° N, 31.2118° E</span>
+        {/* ── 4. VERY BOTTOM FULL-WIDTH REPEATING ARABIC STRIP ── */}
+        <div className="w-full py-4 px-4 bg-[#260a00] flex items-center justify-center overflow-hidden">
+          <div className="w-full flex items-center justify-between gap-4 text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-[#f59e0b] tracking-[0.3em] whitespace-nowrap overflow-hidden">
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
+            <span>ناري</span>
           </div>
         </div>
       </div>
