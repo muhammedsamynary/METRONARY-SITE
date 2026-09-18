@@ -1,26 +1,62 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LogoPrimary } from "@/components/brand/Logo";
 import { ROUTES } from "@/lib/constants";
 
 /**
- * ─── REUSABLE ABOUT US CONTENT COMPONENT ───
+ * ─── REUSABLE ABOUT US CONTENT COMPONENT (SCROLL-REVEAL ENHANCED) ───
  *
  * Single source of truth for METRONARY brand story, equation,
  * Giza heritage, kinetic pillars, and closing manifesto.
  *
- * Used both in `/about` standalone page and directly embedded
- * in the continuous homepage scroll after the footer.
+ * Enhanced with gentle scroll-linked reveals for a continuous
+ * cinematic transition when scrolling past the NARY footer.
  */
 export function AboutContent() {
+  const [heroVisible, setHeroVisible] = useState(false);
+  const [formulaVisible, setFormulaVisible] = useState(false);
+  const [gizaVisible, setGizaVisible] = useState(false);
+  const [pillarsVisible, setPillarsVisible] = useState(false);
+
+  const heroRef = useRef<HTMLElement>(null);
+  const formulaRef = useRef<HTMLElement>(null);
+  const gizaRef = useRef<HTMLElement>(null);
+  const pillarsRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            if (entry.target === heroRef.current) setHeroVisible(true);
+            if (entry.target === formulaRef.current) setFormulaVisible(true);
+            if (entry.target === gizaRef.current) setGizaVisible(true);
+            if (entry.target === pillarsRef.current) setPillarsVisible(true);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    if (heroRef.current) observer.observe(heroRef.current);
+    if (formulaRef.current) observer.observe(formulaRef.current);
+    if (gizaRef.current) observer.observe(gizaRef.current);
+    if (pillarsRef.current) observer.observe(pillarsRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="w-full flex flex-col pt-6 sm:pt-12 pb-24 px-5 sm:px-8 md:px-12 max-w-[1240px] mx-auto text-[var(--m-mist)]">
+    <div className="w-full flex flex-col pt-8 sm:pt-16 pb-28 px-5 sm:px-8 md:px-12 max-w-[1240px] mx-auto text-[var(--m-mist)]">
       {/* ── 1. HERO SECTION ── */}
       <section
+        ref={heroRef}
         aria-labelledby="about-hero-title"
-        className="w-full flex flex-col items-start pt-6 sm:pt-12 pb-16 sm:pb-24 border-b border-white/[0.08]"
+        className={`w-full flex flex-col items-start pt-6 sm:pt-12 pb-16 sm:pb-24 border-b border-white/[0.08] transition-all duration-1000 ease-out ${
+          heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+        }`}
       >
         {/* Technical Origin Badge */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mb-6 sm:mb-8">
@@ -67,8 +103,11 @@ export function AboutContent() {
 
       {/* ── 2. BRAND ORIGIN: THE EQUATION ── */}
       <section
+        ref={formulaRef}
         aria-labelledby="brand-origin-heading"
-        className="w-full py-16 sm:py-24 border-b border-white/[0.08]"
+        className={`w-full py-16 sm:py-24 border-b border-white/[0.08] transition-all duration-1000 ease-out ${
+          formulaVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+        }`}
       >
         <div className="flex items-center gap-2 mb-4">
           <span className="w-2 h-2 rounded-full bg-[var(--m-gold)] shadow-[0_0_8px_rgba(251,133,0,0.8)]" />
@@ -159,8 +198,11 @@ export function AboutContent() {
 
       {/* ── 3. GIZA SECTION: GEOGRAPHY & IDENTITY ── */}
       <section
+        ref={gizaRef}
         aria-labelledby="giza-origin-heading"
-        className="w-full py-16 sm:py-24 border-b border-white/[0.08]"
+        className={`w-full py-16 sm:py-24 border-b border-white/[0.08] transition-all duration-1000 ease-out ${
+          gizaVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+        }`}
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
           {/* Left: Manifest / Statement */}
@@ -233,8 +275,11 @@ export function AboutContent() {
 
       {/* ── 4. BRAND PHILOSOPHY / KINETIC PILLARS ── */}
       <section
+        ref={pillarsRef}
         aria-labelledby="philosophy-heading"
-        className="w-full py-16 sm:py-24 border-b border-white/[0.08]"
+        className={`w-full py-16 sm:py-24 border-b border-white/[0.08] transition-all duration-1000 ease-out ${
+          pillarsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+        }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12 sm:mb-16">
           <div>
