@@ -63,7 +63,7 @@ export function ProductColorSelector({
                   onSelectColor(color);
                 }
               }}
-              className={`min-w-[56px] h-10 px-4 rounded-lg border text-[11px] font-mono tracking-wider font-semibold uppercase flex items-center justify-center transition-all duration-200 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
+              className={`min-w-[56px] min-h-[44px] px-4 rounded-lg border text-xs font-mono tracking-wider font-semibold uppercase flex items-center justify-center transition-all duration-200 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
                 isSelected
                   ? "border-[var(--m-gold)] bg-[rgba(251,133,0,0.18)] text-[var(--m-cream)] shadow-[0_0_14px_rgba(251,133,0,0.45)] scale-105"
                   : disabled

@@ -296,7 +296,7 @@ export function ProductActions({
         disabled={!isEligible}
         aria-disabled={!isEligible}
         onClick={handleAddToCart}
-        className={`w-full py-4 px-6 rounded-lg text-[11px] tracking-[0.24em] uppercase font-semibold select-none text-center transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] ${
+        className={`w-full py-4 px-6 rounded-lg text-xs tracking-[0.24em] uppercase font-bold select-none text-center transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] min-h-[50px] flex items-center justify-center ${
           isEligible
             ? "bg-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_4px_20px_rgba(251,133,0,0.4)] hover:bg-[var(--m-yellow)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             : "bg-[rgba(245,244,238,0.06)] border border-[rgba(245,244,238,0.1)] text-[rgba(245,244,238,0.35)] cursor-not-allowed"

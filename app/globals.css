@@ -99,6 +99,15 @@ body {
   line-height: 1.65;
   margin: 0;
   overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 img, video { max-width: 100%; display: block; }

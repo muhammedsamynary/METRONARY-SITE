@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { CartItem } from "@/lib/cart/types";
 import { formatCurrency } from "@/lib/cart/cart-utils";
 import type { DeliveryQuoteState } from "./CheckoutForm";
@@ -196,10 +197,10 @@ export function CheckoutSummary({
         </div>
 
         {/* Total (Preview Only) */}
-        <div className="border-t border-[rgba(245,244,238,0.08)] pt-3 flex items-center justify-between text-sm font-mono uppercase tracking-wider">
+        <div className="border-t border-[rgba(245,244,238,0.12)] pt-3.5 flex items-center justify-between text-sm sm:text-base font-mono uppercase tracking-wider">
           <span className="font-bold text-[var(--m-cream)]">TOTAL</span>
           {totalMinor !== null ? (
-            <span className="font-bold text-[var(--m-gold)]">
+            <span className="font-black text-base sm:text-lg text-[var(--m-gold)] tracking-wide">
               {formatCurrency(totalMinor / 100, deliveryQuote.currency)}
             </span>
           ) : deliveryQuote.status === "checking" ? (
@@ -288,10 +289,10 @@ export function CheckoutSummary({
             </div>
           </div>
 
-          <span className="text-xs text-[rgba(245,244,238,0.7)] leading-relaxed">
+          <span className="text-xs text-[rgba(245,244,238,0.75)] leading-relaxed">
             I agree to the{" "}
-            <button
-              type="button"
+            <Link
+              href="/terms"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -300,10 +301,10 @@ export function CheckoutSummary({
               className="text-[var(--m-gold)] underline underline-offset-2 hover:text-[var(--m-yellow)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--m-gold)] rounded px-0.5"
             >
               Terms & Conditions
-            </button>{" "}
+            </Link>{" "}
             and{" "}
-            <button
-              type="button"
+            <Link
+              href="/policy"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -312,7 +313,7 @@ export function CheckoutSummary({
               className="text-[var(--m-gold)] underline underline-offset-2 hover:text-[var(--m-yellow)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--m-gold)] rounded px-0.5"
             >
               Privacy Policy
-            </button>
+            </Link>
             .
           </span>
         </label>
@@ -328,12 +329,12 @@ export function CheckoutSummary({
       </div>
 
       {/* ── Place Order Action Button ── */}
-      <div className="pt-1">
+      <div className="pt-2">
         <button
           type="button"
           onClick={handlePlaceOrderClick}
           disabled={isSubmitting}
-          className={`w-full py-4 px-6 rounded-xl text-xs tracking-[0.24em] uppercase font-bold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] min-h-[48px] ${
+          className={`w-full py-4 px-6 rounded-xl text-xs sm:text-[13px] tracking-[0.24em] uppercase font-bold text-center select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-gold)] min-h-[52px] flex items-center justify-center ${
             canPlaceOrder
               ? "bg-[var(--m-gold)] text-[var(--m-dark)] shadow-[0_4px_24px_rgba(251,133,0,0.4)] hover:bg-[var(--m-yellow)] hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               : "bg-[rgba(245,244,238,0.06)] border border-[rgba(245,244,238,0.1)] text-[rgba(245,244,238,0.35)] cursor-pointer"
